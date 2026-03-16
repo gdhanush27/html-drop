@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.env
+*.db
+meta.json
+decks_meta.json
+pages/
+decks/
+.vscode/
+*/__pycache__/
