@@ -9,74 +9,24 @@ htmldrop — single-file Flask HTML sharing app
   /admin         admin dashboard (password protected)
   /admin/action  bulk/single actions (POST)
 """
-import os, uuid, json, re, shutil
+import os, uuid, json, re
 from datetime import datetime, timezone
 from functools import wraps
-from flask import Flask, request, redirect, url_for, abort, send_from_directory, Response, session, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, request, redirect, url_for, abort, send_from_directory, Response, session
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # bumped for multi-slide uploads
 
 BASE       = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR      = os.path.join(BASE, "data")
-TEMPLATES_DIR = os.path.join(BASE, "templates")
-
-PAGES_DIR  = os.path.join(DATA_DIR, "pages")
-DECKS_DIR  = os.path.join(DATA_DIR, "decks")
-META_FILE  = os.path.join(DATA_DIR, "meta.json")
-DECKS_META = os.path.join(DATA_DIR, "decks_meta.json")
-USERS_FILE = os.path.join(DATA_DIR, "users.json")
-
-LEGACY_PAGES_DIR  = os.path.join(BASE, "pages")
-LEGACY_DECKS_DIR  = os.path.join(BASE, "decks")
-LEGACY_META_FILE  = os.path.join(BASE, "meta.json")
-LEGACY_DECKS_META = os.path.join(BASE, "decks_meta.json")
-LEGACY_USERS_FILE = os.path.join(BASE, "users.json")
-
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(TEMPLATES_DIR, exist_ok=True)
-
-def _migrate_legacy_storage():
-    file_moves = [
-        (LEGACY_META_FILE, META_FILE),
-        (LEGACY_DECKS_META, DECKS_META),
-        (LEGACY_USERS_FILE, USERS_FILE),
-    ]
-    for src, dst in file_moves:
-        if os.path.exists(src) and not os.path.exists(dst):
-            shutil.move(src, dst)
-
-    dir_moves = [
-        (LEGACY_PAGES_DIR, PAGES_DIR),
-        (LEGACY_DECKS_DIR, DECKS_DIR),
-    ]
-    for src, dst in dir_moves:
-        if os.path.exists(src) and not os.path.exists(dst):
-            shutil.move(src, dst)
-        elif os.path.isdir(src) and os.path.isdir(dst):
-            for name in os.listdir(src):
-                s = os.path.join(src, name)
-                d = os.path.join(dst, name)
-                if not os.path.exists(d):
-                    shutil.move(s, d)
-            if not os.listdir(src):
-                os.rmdir(src)
-
-_migrate_legacy_storage()
+PAGES_DIR  = os.path.join(BASE, "pages")
+DECKS_DIR  = os.path.join(BASE, "decks")
+META_FILE  = os.path.join(BASE, "meta.json")
+DECKS_META = os.path.join(BASE, "decks_meta.json")
 os.makedirs(PAGES_DIR, exist_ok=True)
 os.makedirs(DECKS_DIR, exist_ok=True)
 
-def load_template_file(filename, fallback):
-    path = os.path.join(TEMPLATES_DIR, filename)
-    if not os.path.exists(path):
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(fallback)
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "password")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "ttpod123")
 
 # ---------------------------------------------------------------------------
 # meta helpers — pages
@@ -174,62 +124,6 @@ def admin_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-def user_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not session.get("user"):
-            return redirect(url_for("user_login"))
-        return f(*args, **kwargs)
-    return wrapper
-
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        return {}
-    with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=2)
-
-def normalize_username(raw):
-    return re.sub(r"[^a-zA-Z0-9_.-]", "", (raw or "").strip().lower())[:32]
-
-def account_links_html():
-    user = session.get("user")
-    if user:
-        return ('<a href="/profile" class="nav-link">profile</a>'
-                '<a href="/logout" class="nav-link">logout</a>')
-    return '<a href="/login" class="nav-link">login / register</a>'
-
-def custom_id_field_html(kind):
-    if not session.get("user"):
-        return ""
-    if kind == "page":
-        label = "custom page url (optional)"
-        name = "custom_page_id"
-        prefix = "/p/"
-    else:
-        label = "custom deck url (optional)"
-        name = "custom_deck_id"
-        prefix = "/d/"
-    return (
-        f'<div style="margin-top:12px;">'
-        f'<label style="display:block;font-family:var(--mono);font-size:.66rem;color:var(--muted);'
-        f'text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">{label}</label>'
-        f'<div style="display:flex;align-items:center;gap:8px;">'
-        f'<span style="font-family:var(--mono);font-size:.75rem;color:var(--muted);">{prefix}</span>'
-        f'<input type="text" name="{name}" maxlength="20" pattern="[A-Za-z0-9]{{4,20}}" '
-        f'class="custom-id-input" data-kind="{kind}" '
-        f'placeholder="mycustomlink" '
-        f'style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);'
-        f'color:var(--text);font-family:var(--mono);font-size:.8rem;padding:8px 10px;outline:none;"/>'
-        f'</div>'
-        f'<div style="font-family:var(--mono);font-size:.62rem;color:var(--muted2);margin-top:6px;">'
-        f'letters and numbers only, 4-20 chars</div>'
-        f'</div>'
-    )
-
 # ---------------------------------------------------------------------------
 # shared CSS
 # ---------------------------------------------------------------------------
@@ -286,6 +180,9 @@ def error_page(code, title, subtitle, detail, show_home=True):
   <div class="detail">{detail}</div>
   <div class="divider"></div>
   {home}
+  <div style="margin-top:18px;font-family:var(--mono);font-size:.62rem;color:var(--muted2);">
+    <a href="https://github.com/gdhanush27/html-drop" style="color:var(--muted);">github</a> &middot; <a href="https://github.com/gdhanush27" style="color:var(--muted);">@gdhanush27</a>
+  </div>
 </div>
 </body></html>"""
     return Response(html, status=code, mimetype="text/html")
@@ -359,7 +256,6 @@ INDEX_TMPL = """<!DOCTYPE html>
     </div>
     <div class="header-nav">
       <a href="/deck" class="nav-link accent">&#9707; slides</a>
-      %%ACCOUNT_LINKS%%
       <a href="/admin" class="nav-link">admin &#8599;</a>
     </div>
   </header>
@@ -374,7 +270,6 @@ INDEX_TMPL = """<!DOCTYPE html>
     <div id="panel-paste" class="panel active">
       <form method="POST" action="/share" enctype="multipart/form-data">
         <textarea name="html" spellcheck="false" placeholder="<!DOCTYPE html>&#10;<html>&#10;  <body><h1>Hello!</h1></body>&#10;</html>">%%PREFILL%%</textarea>
-        %%CUSTOM_PAGE_ID_FIELD%%
         <div class="row">
           <span class="hint">any self-contained html · max 2 MB</span>
           <button type="submit">publish &#8594;</button>
@@ -389,7 +284,6 @@ INDEX_TMPL = """<!DOCTYPE html>
           <div class="dz-text"><strong>drop an .html file here</strong>or click to browse</div>
           <div class="file-name" id="fname"></div>
         </div>
-        %%CUSTOM_PAGE_ID_FIELD%%
         <div class="row">
           <span class="hint">.html / .htm · max 2 MB</span>
           <button type="submit">publish &#8594;</button>
@@ -402,7 +296,7 @@ INDEX_TMPL = """<!DOCTYPE html>
       <div class="how-item"><div class="how-num">03</div><div class="how-title">share it</div><div class="how-desc">Anyone with the link can view it. Append /source to remix.</div></div>
     </div>
   </main>
-  <footer><span>htmldrop</span><span>pages stored locally &#183; no accounts needed</span></footer>
+  <footer><span>htmldrop &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span><span>pages stored locally &#183; no accounts needed</span></footer>
 </div>
 <script>
 function switchTab(n,btn){
@@ -416,40 +310,6 @@ const dz=document.getElementById('dz');
 dz.addEventListener('dragover',()=>dz.classList.add('over'));
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',()=>dz.classList.remove('over'));
-function showInlineError(msg){
-  let el=document.getElementById('inline-form-error');
-  if(!el){
-    el=document.createElement('div');
-    el.id='inline-form-error';
-    el.className='error';
-    const main=document.querySelector('main');
-    const sect=document.querySelector('.sect');
-    main.insertBefore(el, sect);
-  }
-  el.innerHTML='&#9888; '+msg;
-}
-async function checkCustomId(kind,id){
-  const u='/api/id-available?kind='+encodeURIComponent(kind)+'&id='+encodeURIComponent(id);
-  const r=await fetch(u,{credentials:'same-origin'});
-  const j=await r.json();
-  return j;
-}
-document.querySelectorAll('form[action="/share"]').forEach(form=>{
-  form.addEventListener('submit',async function(e){
-    const input=form.querySelector('input[name="custom_page_id"]');
-    if(!input) return;
-    const v=(input.value||'').trim();
-    if(!v) return;
-    e.preventDefault();
-    try{
-      const res=await checkCustomId('page',v);
-      if(!res.ok){ showInlineError(res.error||'Custom URL is unavailable.'); return; }
-      form.submit();
-    }catch(_){
-      showInlineError('Could not validate custom URL. Please try again.');
-    }
-  });
-});
 function copyUrl(){
   navigator.clipboard.writeText(document.getElementById('rurl').textContent).then(()=>{
     const b=document.querySelector('.copy-btn');b.textContent='copied!';
@@ -470,12 +330,10 @@ def render_index(error="", page_id="", prefill="", host=""):
                        f'<button class="copy-btn" onclick="copyUrl()">copy link</button>'
                        f'</div>')
     safe = prefill.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    html = (load_template_file("index.html", INDEX_TMPL)
+    html = (INDEX_TMPL
             .replace("%%CSS%%", COMMON_CSS)
             .replace("%%ERROR%%", error_html)
             .replace("%%RESULT%%", result_html)
-            .replace("%%ACCOUNT_LINKS%%", account_links_html())
-            .replace("%%CUSTOM_PAGE_ID_FIELD%%", custom_id_field_html("page"))
             .replace("%%PREFILL%%", safe))
     return Response(html, mimetype="text/html")
 
@@ -557,7 +415,6 @@ DECK_PAGE_TMPL = """<!DOCTYPE html>
     </div>
     <div class="header-nav">
       <a href="/" class="nav-link">&#8592; home</a>
-      %%ACCOUNT_LINKS%%
     </div>
   </header>
   <main>
@@ -575,7 +432,6 @@ DECK_PAGE_TMPL = """<!DOCTYPE html>
       <form id="paste-form" method="POST" action="/deck/create">
         <label class="field-label" style="margin-top:4px">deck title</label>
         <input type="text" name="title" placeholder="My Awesome Deck" maxlength="120"/>
-        %%CUSTOM_DECK_ID_FIELD%%
         <div id="slides-area" class="slides-area"></div>
         <button type="button" class="add-slide-btn" onclick="addSlide()">+ add slide</button>
         <div class="row">
@@ -590,7 +446,6 @@ DECK_PAGE_TMPL = """<!DOCTYPE html>
       <form method="POST" action="/deck/create" enctype="multipart/form-data">
         <label class="field-label">deck title</label>
         <input type="text" name="title" placeholder="My Awesome Deck" maxlength="120"/>
-        %%CUSTOM_DECK_ID_FIELD%%
         <div class="upload-zone" id="udz">
           <input type="file" name="files" accept=".html,.htm" multiple onchange="filesChosen(this)"/>
           <span style="font-size:2rem;display:block;margin-bottom:8px">&#9707;</span>
@@ -608,7 +463,7 @@ DECK_PAGE_TMPL = """<!DOCTYPE html>
     </div>
 
   </main>
-  <footer><span>htmldrop slides</span><span>keyboard-navigable html decks · no accounts needed</span></footer>
+  <footer><span>htmldrop slides &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span><span>keyboard-navigable html decks &middot; no accounts needed</span></footer>
 </div>
 
 <script>
@@ -696,40 +551,6 @@ function filesChosen(input) {
   var names = [...input.files].map(f => '&#128196; ' + f.name).join('<br>');
   document.getElementById('ufiles').innerHTML = names || '';
 }
-function showInlineError(msg){
-  let el=document.getElementById('inline-form-error');
-  if(!el){
-    el=document.createElement('div');
-    el.id='inline-form-error';
-    el.className='error';
-    const main=document.querySelector('main');
-    const sect=document.querySelector('.sect');
-    main.insertBefore(el, sect);
-  }
-  el.innerHTML='&#9888; '+msg;
-}
-async function checkCustomId(kind,id){
-  const u='/api/id-available?kind='+encodeURIComponent(kind)+'&id='+encodeURIComponent(id);
-  const r=await fetch(u,{credentials:'same-origin'});
-  const j=await r.json();
-  return j;
-}
-document.querySelectorAll('form[action="/deck/create"]').forEach(form=>{
-  form.addEventListener('submit',async function(e){
-    const input=form.querySelector('input[name="custom_deck_id"]');
-    if(!input) return;
-    const v=(input.value||'').trim();
-    if(!v) return;
-    e.preventDefault();
-    try{
-      const res=await checkCustomId('deck',v);
-      if(!res.ok){ showInlineError(res.error||'Custom URL is unavailable.'); return; }
-      form.submit();
-    }catch(_){
-      showInlineError('Could not validate custom URL. Please try again.');
-    }
-  });
-});
 
 var udz = document.getElementById('udz');
 if (udz) {
@@ -765,12 +586,10 @@ def render_deck_page(error="", deck_id="", host=""):
                        f'<div class="rurl" id="rurl">{url}</div></div>'
                        f'<button class="copy-btn" onclick="copyUrl()">copy link</button>'
                        f'</div>')
-    html = (load_template_file("deck_create.html", DECK_PAGE_TMPL)
+    html = (DECK_PAGE_TMPL
             .replace("%%CSS%%", COMMON_CSS)
             .replace("%%DECK_CSS%%", DECK_CSS)
             .replace("%%ERROR%%", error_html)
-            .replace("%%ACCOUNT_LINKS%%", account_links_html())
-            .replace("%%CUSTOM_DECK_ID_FIELD%%", custom_id_field_html("deck"))
             .replace("%%RESULT%%", result_html))
     return Response(html, mimetype="text/html")
 
@@ -1119,215 +938,11 @@ LOGIN_TMPL = """<!DOCTYPE html>
     </form>
   </div>
   <div class="back"><a href="/">&#8592; back to htmldrop</a></div>
-</div>
-</body></html>"""
-
-# ---------------------------------------------------------------------------
-# user auth/profile pages
-# ---------------------------------------------------------------------------
-
-USER_AUTH_TMPL = """<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>%%TITLE%% &#8212; htmldrop</title>
-  <style>
-    %%CSS%%
-    body{display:flex;align-items:center;justify-content:center;min-height:100vh;}
-    .box{width:100%;max-width:380px;padding:0 24px;animation:fadeU .4s ease both;}
-    .logo{font-size:1.4rem;font-weight:800;letter-spacing:-.04em;text-align:center;margin-bottom:6px;}
-    .logo span{color:var(--accent);}
-    .sub{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-align:center;margin-bottom:28px;text-transform:uppercase;letter-spacing:.08em;}
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px;}
-    label{font-family:var(--mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
-    input[type=text],input[type=password]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.85rem;padding:10px 12px;outline:none;transition:border-color .2s;margin-bottom:14px;}
-    input:focus{border-color:var(--border2);}
-    .submit{width:100%;font-family:var(--sans);font-weight:700;font-size:.9rem;background:var(--accent);color:#0a1a0a;border:none;border-radius:var(--r);padding:11px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
-    .submit:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(127,255,127,.2);}
-    .err{background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.3);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:.75rem;color:var(--accent2);margin-bottom:14px;}
-    .hint{font-family:var(--mono);font-size:.66rem;color:var(--muted);margin:6px 0 14px;}
-    .back{text-align:center;margin-top:18px;font-family:var(--mono);font-size:.7rem;color:var(--muted);}
-  </style>
-</head>
-<body>
-<div class="box">
-  <div class="logo">html<span>drop</span></div>
-  <div class="sub">%%SUBTITLE%%</div>
-  <div class="card">
-    %%ERROR%%
-    <form method="POST" action="%%ACTION%%">
-      <label>username</label>
-      <input type="text" name="username" maxlength="32" required autofocus placeholder="e.g. dhanush"/>
-      <label>password</label>
-      <input type="password" name="password" minlength="8" required placeholder="at least 8 characters"/>
-      %%HINT%%
-      <button type="submit" class="submit">%%BTN%% &#8594;</button>
-    </form>
+  <div style="text-align:center;margin-top:12px;font-family:var(--mono);font-size:.62rem;color:var(--muted2);">
+    <a href="https://github.com/gdhanush27/html-drop" style="color:var(--muted);">github</a> &middot; <a href="https://github.com/gdhanush27" style="color:var(--muted);">@gdhanush27</a>
   </div>
-  <div class="back">%%SWITCH%%</div>
 </div>
 </body></html>"""
-
-def render_user_auth(mode, error=""):
-    is_register = mode == "register"
-    title = "Register" if is_register else "Login"
-    subtitle = "create account" if is_register else "account access"
-    action = "/register" if is_register else "/login"
-    btn = "create account" if is_register else "login"
-    switch = ('already have an account? <a href="/login">login</a> &#183; <a href="/">home</a>'
-              if is_register else
-              'new here? <a href="/register">create account</a> &#183; <a href="/">home</a>')
-    hint = ('<div class="hint">Use 8+ characters. Passwords are stored as hashes.</div>'
-            if is_register else "")
-    err = f'<div class="err">&#9888; {error}</div>' if error else ""
-    html = (load_template_file("user_auth.html", USER_AUTH_TMPL)
-            .replace("%%CSS%%", COMMON_CSS)
-            .replace("%%TITLE%%", title)
-            .replace("%%SUBTITLE%%", subtitle)
-            .replace("%%ACTION%%", action)
-            .replace("%%BTN%%", btn)
-            .replace("%%SWITCH%%", switch)
-            .replace("%%HINT%%", hint)
-            .replace("%%ERROR%%", err))
-    return Response(html, mimetype="text/html")
-
-PROFILE_CSS = """
-.layout{min-height:100vh;display:flex;flex-direction:column;max-width:1100px;margin:0 auto;padding:0 28px;}
-header{padding:30px 0 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.logo{font-size:1.3rem;font-weight:800;letter-spacing:-.04em;}
-.logo span{color:var(--accent);}
-.tag{font-family:var(--mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
-.header-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.nav-link{font-family:var(--mono);font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;transition:color .15s,border-color .15s;}
-.nav-link:hover{color:var(--text);border-color:var(--border2);text-decoration:none;}
-main{flex:1;padding:28px 0;}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
-.card .label{font-family:var(--mono);font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
-.card .value{font-size:1.5rem;font-weight:800;letter-spacing:-.03em;}
-.section{margin-top:24px;}
-.section h3{font-family:var(--mono);font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;}
-.table-wrap{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;overflow-x:auto;background:var(--surface);}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.77rem;}
-th{padding:10px 12px;text-align:left;color:var(--muted);text-transform:uppercase;font-size:.63rem;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--surface2);}
-td{padding:10px 12px;border-bottom:1px solid var(--border);}
-tr:last-child td{border-bottom:none;}
-.bdg{display:inline-flex;align-items:center;gap:4px;font-size:.64rem;padding:3px 8px;border-radius:999px;border:1px solid;}
-.bdg-on{border-color:rgba(127,255,127,.3);color:var(--accent);background:var(--accent-dim);}
-.bdg-off{border-color:rgba(255,127,127,.3);color:var(--accent2);background:var(--accent2-dim);}
-.act{font-family:var(--mono);font-size:.67rem;padding:4px 10px;border-radius:var(--r);border:1px solid rgba(255,127,127,.3);background:none;color:var(--accent2);cursor:pointer;}
-.act:hover{background:var(--accent2-dim);}
-.empty{padding:26px;color:var(--muted);font-family:var(--mono);font-size:.76rem;}
-.flash{border-radius:var(--r);padding:11px 15px;margin-bottom:14px;font-family:var(--mono);font-size:.78rem;background:var(--accent-dim);border:1px solid rgba(127,255,127,.3);color:var(--accent);}
-.flash.err{background:var(--accent2-dim);border-color:rgba(255,127,127,.3);color:var(--accent2);}
-footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono);font-size:.66rem;color:var(--muted);}
-@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr);}}
-"""
-
-def build_profile_page(user, pages, decks, flash_msg="", flash_type="ok"):
-    total_hits = sum(p.get("hits", 0) for p in pages) + sum(d.get("hits", 0) for d in decks)
-    blocked_count = sum(1 for p in pages if p.get("blocked")) + sum(1 for d in decks if d.get("blocked"))
-    flash_html = (f'<div class="flash{" err" if flash_type=="err" else ""}">{flash_msg}</div>'
-                  if flash_msg else "")
-
-    def status_badge(is_blocked):
-        return ('<span class="bdg bdg-off">blocked</span>'
-                if is_blocked else '<span class="bdg bdg-on">active</span>')
-
-    def page_rows():
-        if not pages:
-            return '<tr><td colspan="5"><div class="empty">No pages yet.</div></td></tr>'
-        rows = []
-        for p in pages:
-            pid = p["id"]
-            rows.append(
-                f'<tr>'
-                f'<td>{pid}</td>'
-                f'<td>{p.get("hits",0):,}</td>'
-                f'<td>{status_badge(p.get("blocked", False))}</td>'
-                f'<td>{(p.get("created","") or "")[:16].replace("T"," ")}</td>'
-                f'<td><form method="POST" action="/account/action" style="display:inline;">'
-                f'<input type="hidden" name="kind" value="page"/>'
-                f'<input type="hidden" name="id" value="{pid}"/>'
-                f'<button class="act" type="submit">delete</button></form></td>'
-                f'</tr>'
-            )
-        return "\n".join(rows)
-
-    def deck_rows():
-        if not decks:
-            return '<tr><td colspan="6"><div class="empty">No decks yet.</div></td></tr>'
-        rows = []
-        for d in decks:
-            did = d["id"]
-            rows.append(
-                f'<tr>'
-                f'<td>{did}</td>'
-                f'<td>{d.get("title","Untitled Deck")}</td>'
-                f'<td>{d.get("hits",0):,}</td>'
-                f'<td>{status_badge(d.get("blocked", False))}</td>'
-                f'<td>{(d.get("created","") or "")[:16].replace("T"," ")}</td>'
-                f'<td><form method="POST" action="/account/action" style="display:inline;">'
-                f'<input type="hidden" name="kind" value="deck"/>'
-                f'<input type="hidden" name="id" value="{did}"/>'
-                f'<button class="act" type="submit">delete</button></form></td>'
-                f'</tr>'
-            )
-        return "\n".join(rows)
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Profile &#8212; htmldrop</title>
-  <style>{COMMON_CSS}{PROFILE_CSS}</style>
-</head>
-<body>
-<div class="layout">
-  <header>
-    <div>
-      <div class="logo">html<span>drop</span></div>
-      <div class="tag">account: {user}</div>
-    </div>
-    <div class="header-nav">
-      <a href="/" class="nav-link">&#8592; home</a>
-      <a href="/deck" class="nav-link">create deck</a>
-      <a href="/logout" class="nav-link">logout</a>
-    </div>
-  </header>
-  <main>
-    {flash_html}
-    <div class="stats">
-      <div class="card"><div class="label">pages</div><div class="value">{len(pages)}</div></div>
-      <div class="card"><div class="label">decks</div><div class="value">{len(decks)}</div></div>
-      <div class="card"><div class="label">total hits</div><div class="value">{total_hits:,}</div></div>
-      <div class="card"><div class="label">blocked items</div><div class="value">{blocked_count}</div></div>
-    </div>
-
-    <div class="section">
-      <h3>your pages</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>id</th><th>hits</th><th>status</th><th>created</th><th>action</th></tr></thead>
-          <tbody>{page_rows()}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <h3>your decks</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>id</th><th>title</th><th>hits</th><th>status</th><th>created</th><th>action</th></tr></thead>
-          <tbody>{deck_rows()}</tbody>
-        </table>
-      </div>
-    </div>
-  </main>
-  <footer>profile lets you manage only your own pages/decks</footer>
-</div>
-</body>
-</html>"""
 
 # ---------------------------------------------------------------------------
 # admin dashboard builder
@@ -1445,7 +1060,7 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
 """
 
 def build_admin_page(meta, flash_msg=None, flash_type="ok",
-                     q="", user_q="", status_filter="all", sort_by="created", sort_dir="desc"):
+                     q="", status_filter="all", sort_by="created", sort_dir="desc"):
 
     # collect + filter
     pages = []
@@ -1456,8 +1071,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
 
     if q:
         pages = [p for p in pages if q.lower() in p["id"].lower()]
-    if user_q:
-        pages = [p for p in pages if user_q.lower() in (p.get("owner", "guest")).lower()]
     if status_filter == "active":
         pages = [p for p in pages if not p.get("blocked")]
     elif status_filter == "blocked":
@@ -1468,7 +1081,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
         "hits":    lambda p: p.get("hits", 0),
         "size":    lambda p: p.get("size", 0),
         "status":  lambda p: int(p.get("blocked", False)),
-        "owner":   lambda p: p.get("owner", "guest"),
         "created": lambda p: p.get("created", ""),
     }
     pages.sort(key=key_map.get(sort_by, key_map["created"]), reverse=rev)
@@ -1510,7 +1122,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
             pid     = p["id"]
             hits    = p.get("hits", 0)
             blocked = p.get("blocked", False)
-            owner   = p.get("owner", "guest")
             pct     = int(hits / max_hits * 100)
             badge   = (f'<span class="bdg bdg-off"><span class="bdg-dot"></span>blocked</span>'
                        if blocked else
@@ -1524,7 +1135,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
                 f'<tr id="row-{pid}" class="{"is-blocked" if blocked else ""}">'
                 f'<td><input type="checkbox" class="cb row-cb" value="{pid}" onchange="updateBulk()"/></td>'
                 f'<td><span class="pid">{pid}</span></td>'
-                f'<td class="ts">{owner}</td>'
                 f'<td class="ts">{fmt_date(p.get("created",""))}</td>'
                 f'<td class="sz">{fmt_size(p.get("size",0))}</td>'
                 f'<td><div class="hits-bar"><span class="hits-val">{hits:,}</span>'
@@ -1547,7 +1157,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
                 f'{label}{arrow}</th>')
 
     state = (f'<input type="hidden" name="q" value="{q}"/>'
-             f'<input type="hidden" name="user_q" value="{user_q}"/>'
              f'<input type="hidden" name="status" value="{status_filter}"/>'
              f'<input type="hidden" name="sort_by" value="{sort_by}"/>'
              f'<input type="hidden" name="sort_dir" value="{sort_dir}"/>')
@@ -1566,24 +1175,16 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
     # decks rows
     if decks_meta:
         deck_rows = []
-        deck_list = []
-        for did, dinfo in decks_meta.items():
+        for did, dinfo in sorted(decks_meta.items(),
+                                  key=lambda x: x[1].get("created",""), reverse=True):
             deck_dir = os.path.join(DECKS_DIR, did)
             if not os.path.isdir(deck_dir):
                 continue
-            if q and q.lower() not in did.lower():
-                continue
-            if user_q and user_q.lower() not in (dinfo.get("owner", "guest")).lower():
-                continue
-            deck_list.append((did, dinfo))
-
-        for did, dinfo in sorted(deck_list, key=lambda x: x[1].get("created",""), reverse=True):
             dtitle   = dinfo.get("title", "Untitled")
             dslides  = dinfo.get("slide_count", 0)
             dcreated = fmt_date(dinfo.get("created",""))
             dhits    = dinfo.get("hits", 0)
             dblocked = dinfo.get("blocked", False)
-            downer   = dinfo.get("owner", "guest")
             dpct     = int(dhits / max_deck_hits * 100)
             dbadge   = (f'<span class="bdg bdg-off"><span class="bdg-dot"></span>blocked</span>'
                         if dblocked else
@@ -1597,7 +1198,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
                 f'<tr id="drow-{did}" class="{"is-blocked" if dblocked else ""}">'
                 f'<td><input type="checkbox" class="cb deck-cb" value="{did}" onchange="updateDeckBulk()"/></td>'
                 f'<td><span class="pid">{did}</span></td>'
-                f'<td class="ts">{downer}</td>'
                 f'<td style="color:var(--text);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{dtitle}</td>'
                 f'<td class="ts">{dcreated}</td>'
                 f'<td style="color:var(--info)">{dslides}</td>'
@@ -1610,10 +1210,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
                 f'<button class="act danger" onclick="confirmDeckDelete([\'{did}\'])">delete</button>'
                 f'</td></tr>'
             )
-        if deck_rows:
-            deck_rows_html = "\n".join(deck_rows)
-        else:
-            deck_rows_html = '<tr><td colspan="9"><div class="empty"><span class="empty-icon">&#9707;</span>No decks match your filters.</div></td></tr>'
+        deck_rows_html = "\n".join(deck_rows)
     else:
         deck_rows_html = '<tr><td colspan="8"><div class="empty"><span class="empty-icon">&#9707;</span>No decks yet. <a href="/deck">Create your first deck &rarr;</a></div></td></tr>'
 
@@ -1651,10 +1248,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
         <span class="search-icon">&#128269;</span>
         <input id="q-input" type="text" placeholder="search by id&#8230;" value="{q}" oninput="applyFilters()"/>
       </div>
-      <div class="search-wrap">
-        <span class="search-icon">&#128100;</span>
-        <input id="u-input" type="text" placeholder="filter by username&#8230;" value="{user_q}" oninput="applyFilters()"/>
-      </div>
       <select id="s-select" onchange="applyFilters()">
         <option value="all" {sel_all}>all pages</option>
         <option value="active" {sel_active}>active only</option>
@@ -1685,7 +1278,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
           <tr>
             <th style="width:36px"><input type="checkbox" class="cb" id="cb-all" onchange="toggleAll(this)"/></th>
             <th>page id</th>
-            {th("user", "owner")}
             {th("created", "created")}
             {th("size", "size")}
             {th("hits", "hits")}
@@ -1723,7 +1315,6 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
           <tr>
             <th style="width:36px"><input type="checkbox" class="cb" id="dcb-all" onchange="toggleAllDecks(this)"/></th>
             <th>deck id</th>
-            <th>user</th>
             <th>title</th>
             <th>created</th>
             <th>slides</th>
@@ -1738,7 +1329,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok",
   </main>
 
   <footer>
-    <span>htmldrop admin</span>
+    <span>htmldrop admin &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span>
     <span>managing {total} page{'s' if total!=1 else ''} &amp; {total_decks} deck{'s' if total_decks!=1 else ''}</span>
   </footer>
 </div>
@@ -1868,7 +1459,6 @@ function submit(){{
 function applyFilters(){{
   const url=new URL(window.location);
   url.searchParams.set('q',document.getElementById('q-input').value);
-  url.searchParams.set('user_q',document.getElementById('u-input').value);
   url.searchParams.set('status',document.getElementById('s-select').value);
   url.searchParams.set('sort_by','{sort_by}');
   url.searchParams.set('sort_dir','{sort_dir}');
@@ -1894,26 +1484,6 @@ def index():
     return render_index()
 
 
-@app.route("/api/id-available", methods=["GET"])
-def id_available():
-    if not session.get("user"):
-        return jsonify({"ok": False, "error": "Login required to use custom URLs."}), 403
-    kind = (request.args.get("kind", "") or "").strip().lower()
-    raw_id = (request.args.get("id", "") or "").strip()
-    if not re.match(r"^[A-Za-z0-9]{4,20}$", raw_id):
-        return jsonify({"ok": False, "error": "Custom URL must be 4-20 letters/numbers."}), 400
-    custom_id = raw_id.lower()
-    if kind == "page":
-        taken = os.path.exists(os.path.join(PAGES_DIR, f"{custom_id}.html")) or bool(get_page_meta(custom_id))
-    elif kind == "deck":
-        taken = os.path.isdir(os.path.join(DECKS_DIR, custom_id)) or bool(get_deck_meta(custom_id))
-    else:
-        return jsonify({"ok": False, "error": "Invalid custom URL type."}), 400
-    if taken:
-        return jsonify({"ok": False, "error": "That custom URL is already taken. Try another."}), 200
-    return jsonify({"ok": True}), 200
-
-
 @app.route("/share", methods=["POST"])
 def share():
     content = None
@@ -1928,21 +1498,11 @@ def share():
     if not content:
         return render_index(error="Please paste some HTML or upload a file.")
 
-    custom_page_id = (request.form.get("custom_page_id", "") or "").strip()
-    if custom_page_id:
-        if not session.get("user"):
-            return render_index(error="Login required to use a custom URL.", prefill=content)
-        if not re.match(r"^[A-Za-z0-9]{4,20}$", custom_page_id):
-            return render_index(error="Custom URL must be 4-20 letters/numbers.", prefill=content)
-        page_id = custom_page_id.lower()
-        if os.path.exists(os.path.join(PAGES_DIR, f"{page_id}.html")) or get_page_meta(page_id):
-            return render_index(error="That custom URL is already taken. Try another.", prefill=content)
-    else:
-        page_id = uuid.uuid4().hex[:10]
+    page_id = uuid.uuid4().hex[:10]
     filepath = os.path.join(PAGES_DIR, f"{page_id}.html")
     with open(filepath, "w", encoding="utf-8") as fh:
         fh.write(content)
-    upsert_meta(page_id, size=len(content.encode("utf-8")), owner=session.get("user"))
+    upsert_meta(page_id, size=len(content.encode("utf-8")))
     return render_index(page_id=page_id, host=request.host_url)
 
 
@@ -1986,7 +1546,6 @@ def deck_create():
 @app.route("/deck/create", methods=["POST"])
 def deck_save():
     title = request.form.get("title", "").strip() or "Untitled Deck"
-    custom_deck_id = (request.form.get("custom_deck_id", "") or "").strip()
     slides = []
 
     # --- upload mode: multiple files ---
@@ -2018,16 +1577,7 @@ def deck_save():
     if len(slides) > 20:
         slides = slides[:20]
 
-    if custom_deck_id:
-        if not session.get("user"):
-            return render_deck_page(error="Login required to use a custom URL.")
-        if not re.match(r"^[A-Za-z0-9]{4,20}$", custom_deck_id):
-            return render_deck_page(error="Custom deck URL must be 4-20 letters/numbers.")
-        deck_id = custom_deck_id.lower()
-        if os.path.isdir(os.path.join(DECKS_DIR, deck_id)) or get_deck_meta(deck_id):
-            return render_deck_page(error="That custom deck URL is already taken. Try another.")
-    else:
-        deck_id = uuid.uuid4().hex[:10]
+    deck_id  = uuid.uuid4().hex[:10]
     deck_dir = os.path.join(DECKS_DIR, deck_id)
     os.makedirs(deck_dir)
 
@@ -2046,7 +1596,7 @@ def deck_save():
     with open(os.path.join(deck_dir, "manifest.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2)
 
-    upsert_deck_meta(deck_id, title=title, slide_count=len(slides), owner=session.get("user"))
+    upsert_deck_meta(deck_id, title=title, slide_count=len(slides))
     return render_deck_page(deck_id=deck_id, host=request.host_url)
 
 
@@ -2093,123 +1643,6 @@ def view_deck(deck_id):
 
 
 # ---------------------------------------------------------------------------
-# routes — user accounts
-# ---------------------------------------------------------------------------
-
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if session.get("user"):
-        return redirect(url_for("profile"))
-    if request.method == "POST":
-        username = normalize_username(request.form.get("username", ""))
-        password = request.form.get("password", "")
-        if not re.match(r"^[a-z0-9_.-]{3,32}$", username):
-            return render_user_auth("register", "Username must be 3-32 chars: a-z, 0-9, _, -, .")
-        if len(password) < 8:
-            return render_user_auth("register", "Password must be at least 8 characters.")
-        users = load_users()
-        if username in users:
-            return render_user_auth("register", "Username already exists.")
-        users[username] = {
-            "password_hash": generate_password_hash(password),
-            "created": datetime.now(timezone.utc).isoformat(),
-        }
-        save_users(users)
-        session.clear()
-        session["user"] = username
-        return redirect(url_for("profile"))
-    return render_user_auth("register")
-
-
-@app.route("/login", methods=["GET", "POST"])
-def user_login():
-    if session.get("user"):
-        return redirect(url_for("profile"))
-    if request.method == "POST":
-        username = normalize_username(request.form.get("username", ""))
-        password = request.form.get("password", "")
-        users = load_users()
-        data = users.get(username)
-        # Uniform failure message to reduce account enumeration.
-        if not data or not check_password_hash(data.get("password_hash", ""), password):
-            return render_user_auth("login", "Invalid username or password.")
-        session.clear()
-        session["user"] = username
-        return redirect(url_for("profile"))
-    return render_user_auth("login")
-
-
-@app.route("/logout")
-def logout():
-    session.pop("user", None)
-    return redirect(url_for("index"))
-
-
-@app.route("/profile")
-@user_required
-def profile():
-    user = session.get("user")
-    flash_msg = session.pop("user_flash", "")
-    flash_type = session.pop("user_flash_type", "ok")
-
-    pages = []
-    for pid, info in load_meta().items():
-        if info.get("owner") != user:
-            continue
-        if os.path.exists(os.path.join(PAGES_DIR, f"{pid}.html")):
-            pages.append({**info, "id": pid})
-    pages.sort(key=lambda p: p.get("created", ""), reverse=True)
-
-    decks = []
-    for did, info in load_decks_meta().items():
-        if info.get("owner") != user:
-            continue
-        if os.path.isdir(os.path.join(DECKS_DIR, did)):
-            decks.append({**info, "id": did})
-    decks.sort(key=lambda d: d.get("created", ""), reverse=True)
-
-    html = build_profile_page(user, pages, decks, flash_msg, flash_type)
-    return Response(html, mimetype="text/html")
-
-
-@app.route("/account/action", methods=["POST"])
-@user_required
-def account_action():
-    item_id = request.form.get("id", "").strip()
-    kind = request.form.get("kind", "")
-    user = session.get("user")
-
-    if not re.match(r"^[a-zA-Z0-9]{1,20}$", item_id):
-        session["user_flash"] = "Invalid item id."
-        session["user_flash_type"] = "err"
-        return redirect(url_for("profile"))
-
-    if kind == "page":
-        meta = get_page_meta(item_id)
-        if not meta or meta.get("owner") != user:
-            session["user_flash"] = "Page not found for your account."
-            session["user_flash_type"] = "err"
-            return redirect(url_for("profile"))
-        delete_page(item_id)
-        session["user_flash"] = "Page deleted."
-        session["user_flash_type"] = "ok"
-    elif kind == "deck":
-        meta = get_deck_meta(item_id)
-        if not meta or meta.get("owner") != user:
-            session["user_flash"] = "Deck not found for your account."
-            session["user_flash_type"] = "err"
-            return redirect(url_for("profile"))
-        delete_deck(item_id)
-        session["user_flash"] = "Deck deleted."
-        session["user_flash_type"] = "ok"
-    else:
-        session["user_flash"] = "Unknown action."
-        session["user_flash_type"] = "err"
-
-    return redirect(url_for("profile"))
-
-
-# ---------------------------------------------------------------------------
 # routes — admin
 # ---------------------------------------------------------------------------
 
@@ -2220,11 +1653,9 @@ def admin_login():
             session["admin"] = True
             return redirect(url_for("admin"))
         err = '<div class="err">&#9888; incorrect password</div>'
-        login_tmpl = load_template_file("admin_login.html", LOGIN_TMPL)
-        html = login_tmpl.replace("%%CSS%%", COMMON_CSS).replace("%%ERROR%%", err)
+        html = LOGIN_TMPL.replace("%%CSS%%", COMMON_CSS).replace("%%ERROR%%", err)
         return Response(html, mimetype="text/html")
-    login_tmpl = load_template_file("admin_login.html", LOGIN_TMPL)
-    html = login_tmpl.replace("%%CSS%%", COMMON_CSS).replace("%%ERROR%%", "")
+    html = LOGIN_TMPL.replace("%%CSS%%", COMMON_CSS).replace("%%ERROR%%", "")
     return Response(html, mimetype="text/html")
 
 
@@ -2238,7 +1669,6 @@ def admin_logout():
 @admin_required
 def admin():
     q          = request.args.get("q", "")
-    user_q     = request.args.get("user_q", "")
     status     = request.args.get("status", "all")
     sort_by    = request.args.get("sort_by", "created")
     sort_dir   = request.args.get("sort_dir", "desc")
@@ -2246,7 +1676,7 @@ def admin():
     flash_type = session.pop("flash_type", "ok")
     html = build_admin_page(load_meta(),
                             flash_msg=flash_msg, flash_type=flash_type,
-                            q=q, user_q=user_q, status_filter=status,
+                            q=q, status_filter=status,
                             sort_by=sort_by, sort_dir=sort_dir)
     return Response(html, mimetype="text/html")
 
@@ -2259,7 +1689,6 @@ def admin_action():
     ids      = [i.strip() for i in raw.split(",")
                 if re.match(r"^[a-zA-Z0-9]{1,20}$", i.strip())]
     q        = request.form.get("q", "")
-    user_q   = request.form.get("user_q", "")
     status   = request.form.get("status", "all")
     sort_by  = request.form.get("sort_by", "created")
     sort_dir = request.form.get("sort_dir", "desc")
@@ -2295,7 +1724,7 @@ def admin_action():
         session["flash"] = f"Unknown operation: {op}"
         session["flash_type"] = "err"
 
-    return redirect(url_for("admin", q=q, user_q=user_q, status=status,
+    return redirect(url_for("admin", q=q, status=status,
                              sort_by=sort_by, sort_dir=sort_dir))
 
 

@@ -12,3 +12,4 @@ pages/
 decks/
 .vscode/
 */__pycache__/
+users.json
