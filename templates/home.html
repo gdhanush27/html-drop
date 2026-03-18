@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="icon" type="image/png" href="/favicon.png"/>
+  <title>htmldrop</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0c0e;--surface:#141418;--surface2:#1c1c22;--border:#252530;
+  --border2:#2e2e3a;--text:#e8e8f0;--muted:#6b6b80;--muted2:#4a4a5a;
+  --accent:#7fff7f;--accent-dim:#1a3d1a;--accent2:#ff7f7f;--accent2-dim:#3d1a1a;
+  --warn:#ffd47f;--warn-dim:#3d2e0a;--info:#7fcfff;--info-dim:#0a2433;
+  --r:6px;--mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.35;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+@keyframes fadeD{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeU{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .navbar{position:sticky;top:0;z-index:100;background:rgba(12,12,14,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);}
+.nav-inner{max-width:1000px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{font-size:1.3rem;font-weight:800;letter-spacing:-.04em;color:var(--text);text-decoration:none !important;}
+.nav-logo span{color:var(--accent);}
+.nav-links{display:flex;gap:4px;align-items:center;}
+.nav-item{font-family:var(--mono);font-size:.76rem;color:var(--muted);padding:7px 14px;border-radius:var(--r);transition:color .15s,background .15s;text-decoration:none !important;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-dim);}
+.nav-toggle{display:none;background:none;border:1px solid var(--border);border-radius:var(--r);padding:8px 9px;cursor:pointer;flex-direction:column;gap:4px;align-items:center;justify-content:center;}
+.nav-toggle span{display:block;width:18px;height:2px;background:var(--text);border-radius:1px;transition:transform .25s,opacity .25s;}
+.nav-toggle.open span:nth-child(1){transform:rotate(45deg) translate(4px,4px);}
+.nav-toggle.open span:nth-child(2){opacity:0;}
+.nav-toggle.open span:nth-child(3){transform:rotate(-45deg) translate(4px,-4px);}
+@media(max-width:640px){
+  .nav-toggle{display:flex;}
+  .nav-links{display:none;position:absolute;top:56px;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);flex-direction:column;padding:8px 16px;gap:2px;z-index:99;}
+  .nav-links.open{display:flex;animation:fadeD .2s ease both;}
+  .nav-item{padding:12px 16px;width:100%;}
+  .nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:98;cursor:pointer;}
+  .nav-backdrop.open{display:block;animation:fadeIn .2s ease both;}
+}
+    .home-wrap{max-width:900px;margin:0 auto;padding:0 24px;}
+    .hero{text-align:center;padding:80px 0 48px;animation:fadeU .5s ease both;}
+    .hero-title{font-size:3.2rem;font-weight:800;letter-spacing:-.05em;line-height:1.1;margin-bottom:14px;}
+    .hero-title span{color:var(--accent);}
+    .hero-sub{font-family:var(--mono);font-size:.92rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em;}
+    .hero-desc{font-family:var(--mono);font-size:.8rem;color:var(--muted2);max-width:540px;margin:0 auto;line-height:1.7;}
+    .hero-pinned{text-align:center;padding:80px 0 48px;animation:fadeU .5s ease both;}
+    .hero-pinned-label{font-family:var(--mono);font-size:.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;margin-bottom:18px;display:flex;align-items:center;justify-content:center;gap:8px;}
+    .hero-pinned-label::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);}
+    .hero-pinned-name{font-size:3.2rem;font-weight:800;letter-spacing:-.05em;line-height:1.1;margin-bottom:14px;background:linear-gradient(135deg,var(--text) 0%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .hero-pinned-name a{background:inherit;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-decoration:none !important;}
+    .hero-pinned-sub{font-family:var(--mono);font-size:.82rem;color:var(--muted);margin-bottom:28px;}
+    .hero-pinned-btn{display:inline-block;font-family:var(--mono);font-size:.82rem;color:#0a1a0a;background:var(--accent);padding:11px 28px;border-radius:var(--r);text-decoration:none !important;transition:transform .15s,box-shadow .15s;}
+    .hero-pinned-btn:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(127,255,127,.22);}
+    .features{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding-bottom:48px;animation:fadeU .5s ease .15s both;}
+    .feature-card{display:block;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:32px 28px;text-decoration:none !important;transition:border-color .2s,transform .2s,box-shadow .2s;}
+    .feature-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 30px rgba(127,255,127,.08);}
+    .feature-icon{font-size:2.2rem;margin-bottom:14px;}
+    .feature-title{font-size:1.15rem;font-weight:700;color:var(--text);margin-bottom:8px;}
+    .feature-desc{font-family:var(--mono);font-size:.75rem;color:var(--muted);line-height:1.7;margin-bottom:18px;}
+    .feature-cta{font-family:var(--mono);font-size:.78rem;color:var(--accent);display:inline-flex;align-items:center;gap:6px;}
+    .how{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:40px 0;border-top:1px solid var(--border);animation:fadeU .5s ease .25s both;}
+    .how-item{padding:22px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);}
+    .how-num{font-family:var(--mono);font-size:.68rem;color:var(--accent);margin-bottom:10px;}
+    .how-title{font-size:.95rem;font-weight:600;margin-bottom:6px;}
+    .how-desc{font-family:var(--mono);font-size:.72rem;color:var(--muted);line-height:1.6;}
+    footer{border-top:1px solid var(--border);padding:20px 0;font-family:var(--mono);font-size:.66rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+    @media(max-width:640px){
+      .hero{padding:48px 0 32px;}
+      .hero-title{font-size:2.2rem;}
+      .hero-pinned{padding:48px 0 32px;}
+      .hero-pinned-name{font-size:2.2rem;}
+      .features{grid-template-columns:1fr;}
+      .how{grid-template-columns:1fr;}
+    }
+  </style>
+</head>
+<body>
+{% include '_navbar.html' %}
+<div class="home-wrap">
+  {% if pinned %}
+  <div class="hero-pinned">
+    <div class="hero-pinned-label">featured {{ pinned.type }}</div>
+    <div class="hero-pinned-name"><a href="{{ pinned.url }}">{{ pinned.name }}</a></div>
+    <div class="hero-pinned-sub">{{ pinned.path }}</div>
+    <a href="{{ pinned.url }}" class="hero-pinned-btn">view {{ pinned.type }} &#8594;</a>
+  </div>
+  {% else %}
+  <div class="hero">
+    <h1 class="hero-title">html<span>drop</span></h1>
+    <p class="hero-sub">instant html sharing</p>
+    <p class="hero-desc">Drop any self-contained HTML and get a live link in seconds. Create single pages or keyboard-navigable slide decks &mdash; sign up to manage your content.</p>
+  </div>
+  {% endif %}
+  <div class="features">
+    <a href="/page" class="feature-card">
+      <div class="feature-icon">&#128196;</div>
+      <div class="feature-title">Pages</div>
+      <div class="feature-desc">Paste or upload any HTML to get a permanent shareable link. Inline CSS, JS, everything works.</div>
+      <div class="feature-cta">create a page &#8594;</div>
+    </a>
+    <a href="/deck" class="feature-card">
+      <div class="feature-icon">&#9707;</div>
+      <div class="feature-title">Slides</div>
+      <div class="feature-desc">Build fullscreen slide decks from multiple HTML files with keyboard navigation and swipe support.</div>
+      <div class="feature-cta">create a deck &#8594;</div>
+    </a>
+  </div>
+  <div class="how">
+    <div class="how-item"><div class="how-num">01</div><div class="how-title">paste or upload</div><div class="how-desc">Drop any self-contained HTML &mdash; inline CSS, JS, everything welcome.</div></div>
+    <div class="how-item"><div class="how-num">02</div><div class="how-title">get a link</div><div class="how-desc">Receive a short permanent URL to your fully rendered page or deck.</div></div>
+    <div class="how-item"><div class="how-num">03</div><div class="how-title">share it</div><div class="how-desc">Anyone with the link can view it. Append /source to remix pages.</div></div>
+  </div>
+  <footer><span>htmldrop &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span><span>pages stored locally &#183; <a href="/register">create an account</a></span></footer>
+</div>
+</body></html>

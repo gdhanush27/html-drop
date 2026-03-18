@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="icon" type="image/png" href="/favicon.png"/>
+  <title>Login &#8212; htmldrop</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0c0e;--surface:#141418;--surface2:#1c1c22;--border:#252530;
+  --border2:#2e2e3a;--text:#e8e8f0;--muted:#6b6b80;--muted2:#4a4a5a;
+  --accent:#7fff7f;--accent-dim:#1a3d1a;--accent2:#ff7f7f;--accent2-dim:#3d1a1a;
+  --warn:#ffd47f;--warn-dim:#3d2e0a;--info:#7fcfff;--info-dim:#0a2433;
+  --r:6px;--mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.35;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+@keyframes fadeU{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+    .box{width:100%;max-width:400px;padding:0 24px;animation:fadeU .4s ease both;}
+    .logo{font-size:1.4rem;font-weight:800;letter-spacing:-.04em;text-align:center;margin-bottom:6px;}
+    .logo span{color:var(--accent);}
+    .sub{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-align:center;margin-bottom:32px;text-transform:uppercase;letter-spacing:.08em;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px;}
+    label{font-family:var(--mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
+    input[type=email],input[type=password]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.85rem;padding:10px 12px;outline:none;transition:border-color .2s;margin-bottom:16px;}
+    input[type=email]:focus,input[type=password]:focus{border-color:var(--border2);}
+    .submit{width:100%;font-family:var(--sans);font-weight:700;font-size:.9rem;background:var(--accent);color:#0a1a0a;border:none;border-radius:var(--r);padding:11px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+    .submit:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(127,255,127,.2);}
+    .err{background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.3);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:.75rem;color:var(--accent2);margin-bottom:14px;}
+    .back{text-align:center;margin-top:18px;font-family:var(--mono);font-size:.7rem;}
+    .back a{color:var(--muted);}
+    .links{text-align:center;margin-top:14px;font-family:var(--mono);font-size:.72rem;}
+    .links a{color:var(--accent);}
+  </style>
+</head>
+<body>
+<div class="box">
+  <a href="/" class="logo" style="text-decoration:none;color:inherit;display:block">html<span>drop</span></a>
+  <div class="sub">sign in to your account</div>
+  <div class="card">
+    {% if error_html %}{{ error_html|safe }}{% endif %}
+    <form method="POST" action="/login">
+      <label>email</label>
+      <input type="email" name="email" autofocus placeholder="you@example.com" required/>
+      <label>password</label>
+      <input type="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required/>
+      <button type="submit" class="submit">login &#8594;</button>
+    </form>
+  </div>
+  <div class="links">don't have an account? <a href="/register">register</a></div>
+  <div class="back"><a href="/">&#8592; back to htmldrop</a></div>
+</div>
+</body></html>

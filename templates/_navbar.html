@@ -1,0 +1,28 @@
+<div class="nav-backdrop" id="nav-backdrop" onclick="toggleNav()"></div>
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">html<span>drop</span></a>
+    <button class="nav-toggle" id="nav-toggle" onclick="toggleNav()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="nav-menu">
+      <a href="/" class="nav-item{{ ' active' if active_nav == 'home' else '' }}">&#8962; home</a>
+      <a href="/page" class="nav-item{{ ' active' if active_nav == 'page' else '' }}">&#128196; pages</a>
+      <a href="/deck" class="nav-item{{ ' active' if active_nav == 'deck' else '' }}">&#9707; slides</a>
+      {% if session.get('user_email') %}
+      <a href="/profile" class="nav-item{{ ' active' if active_nav == 'profile' else '' }}">&#9679; profile</a>
+      {% else %}
+      <a href="/login" class="nav-item{{ ' active' if active_nav == 'login' else '' }}">&#8594; login</a>
+      {% endif %}
+      <a href="/admin" class="nav-item{{ ' active' if active_nav == 'admin' else '' }}">&#9881; admin</a>
+    </div>
+  </div>
+</nav>
+<script>
+function toggleNav(){
+  var t=document.getElementById("nav-toggle"),m=document.getElementById("nav-menu"),b=document.getElementById("nav-backdrop");
+  var open=m.classList.toggle("open");
+  t.classList.toggle("open",open);
+  b.classList.toggle("open",open);
+}
+</script>

@@ -1,37 +1,48 @@
-import os
-import re
-import uuid
-
-from flask import Blueprint, request, Response, send_from_directory
-
-from app.config import PAGES_DIR
-from app.styles import COMMON_CSS
-from app.meta import get_page_meta, upsert_meta, inc_hits
-from app.errors import error_page
-
-pages_bp = Blueprint("pages_bp", __name__)
-
-# ---------------------------------------------------------------------------
-# index template
-# ---------------------------------------------------------------------------
-
-INDEX_TMPL = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="icon" type="image/png" href="/favicon.png"/>
   <title>htmldrop</title>
   <style>
-    %%CSS%%
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0c0e;--surface:#141418;--surface2:#1c1c22;--border:#252530;
+  --border2:#2e2e3a;--text:#e8e8f0;--muted:#6b6b80;--muted2:#4a4a5a;
+  --accent:#7fff7f;--accent-dim:#1a3d1a;--accent2:#ff7f7f;--accent2-dim:#3d1a1a;
+  --warn:#ffd47f;--warn-dim:#3d2e0a;--info:#7fcfff;--info-dim:#0a2433;
+  --r:6px;--mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.35;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+@keyframes fadeD{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeU{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .navbar{position:sticky;top:0;z-index:100;background:rgba(12,12,14,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);}
+.nav-inner{max-width:1000px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{font-size:1.3rem;font-weight:800;letter-spacing:-.04em;color:var(--text);text-decoration:none !important;}
+.nav-logo span{color:var(--accent);}
+.nav-links{display:flex;gap:4px;align-items:center;}
+.nav-item{font-family:var(--mono);font-size:.76rem;color:var(--muted);padding:7px 14px;border-radius:var(--r);transition:color .15s,background .15s;text-decoration:none !important;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-dim);}
+.nav-toggle{display:none;background:none;border:1px solid var(--border);border-radius:var(--r);padding:8px 9px;cursor:pointer;flex-direction:column;gap:4px;align-items:center;justify-content:center;}
+.nav-toggle span{display:block;width:18px;height:2px;background:var(--text);border-radius:1px;transition:transform .25s,opacity .25s;}
+.nav-toggle.open span:nth-child(1){transform:rotate(45deg) translate(4px,4px);}
+.nav-toggle.open span:nth-child(2){opacity:0;}
+.nav-toggle.open span:nth-child(3){transform:rotate(-45deg) translate(4px,-4px);}
+@media(max-width:640px){
+  .nav-toggle{display:flex;}
+  .nav-links{display:none;position:absolute;top:56px;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);flex-direction:column;padding:8px 16px;gap:2px;z-index:99;}
+  .nav-links.open{display:flex;animation:fadeD .2s ease both;}
+  .nav-item{padding:12px 16px;width:100%;}
+  .nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:98;cursor:pointer;}
+  .nav-backdrop.open{display:block;animation:fadeIn .2s ease both;}
+}
     .layout{min-height:100vh;display:flex;flex-direction:column;max-width:860px;margin:0 auto;padding:0 24px;}
-    header{padding:36px 0 24px;border-bottom:1px solid var(--border);animation:fadeD .4s ease both;display:flex;align-items:baseline;gap:14px;justify-content:space-between;flex-wrap:wrap;}
-    .logo{font-size:1.5rem;font-weight:800;letter-spacing:-.04em;}
-    .logo span{color:var(--accent);}
-    .tagline{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
-    .header-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-    .nav-link{font-family:var(--mono);font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;transition:color .15s,border-color .15s;}
-    .nav-link:hover{color:var(--text);border-color:var(--border2);text-decoration:none;}
-    .nav-link.accent{color:var(--accent);border-color:rgba(127,255,127,.3);}
-    .nav-link.accent:hover{background:var(--accent-dim);}
     main{flex:1;padding:36px 0;animation:fadeU .4s ease .1s both;}
     .sect{font-family:var(--mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
     .sect::before{content:'';display:inline-block;width:16px;height:1px;background:var(--muted);}
@@ -72,20 +83,11 @@ INDEX_TMPL = """<!DOCTYPE html>
   </style>
 </head>
 <body>
+{% include '_navbar.html' %}
 <div class="layout">
-  <header>
-    <div style="display:flex;align-items:baseline;gap:14px">
-      <div class="logo">html<span>drop</span></div>
-      <div class="tagline">instant html sharing</div>
-    </div>
-    <div class="header-nav">
-      <a href="/deck" class="nav-link accent">&#9707; slides</a>
-      <a href="/admin" class="nav-link">admin &#8599;</a>
-    </div>
-  </header>
   <main>
-    %%ERROR%%
-    %%RESULT%%
+    {% if error_html %}{{ error_html|safe }}{% endif %}
+    {% if result_html %}{{ result_html|safe }}{% endif %}
     <div class="sect">create or share a page</div>
     <div class="tabs">
       <button class="tab active" onclick="switchTab('paste',this)">paste html</button>
@@ -93,7 +95,7 @@ INDEX_TMPL = """<!DOCTYPE html>
     </div>
     <div id="panel-paste" class="panel active">
       <form method="POST" action="/share" enctype="multipart/form-data">
-        <textarea name="html" spellcheck="false" placeholder="<!DOCTYPE html>&#10;<html>&#10;  <body><h1>Hello!</h1></body>&#10;</html>">%%PREFILL%%</textarea>
+        <textarea name="html" spellcheck="false" placeholder="<!DOCTYPE html>&#10;<html>&#10;  <body><h1>Hello!</h1></body>&#10;</html>">{{ prefill }}</textarea>
         <div class="row">
           <span class="hint">any self-contained html · max 2 MB</span>
           <button type="submit">publish &#8594;</button>
@@ -120,7 +122,7 @@ INDEX_TMPL = """<!DOCTYPE html>
       <div class="how-item"><div class="how-num">03</div><div class="how-title">share it</div><div class="how-desc">Anyone with the link can view it. Append /source to remix.</div></div>
     </div>
   </main>
-  <footer><span>htmldrop</span><span>pages stored locally &#183; no accounts needed</span></footer>
+  <footer><span>htmldrop &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span><span>pages stored locally &#183; <a href="/register">create an account</a></span></footer>
 </div>
 <script>
 function switchTab(n,btn){
@@ -130,94 +132,15 @@ function switchTab(n,btn){
   document.getElementById('panel-'+n).classList.add('active');
 }
 function fileChosen(i){document.getElementById('fname').textContent=i.files[0]?'&#128196; '+i.files[0].name:'';}
-const dz=document.getElementById('dz');
+var dz=document.getElementById('dz');
 dz.addEventListener('dragover',()=>dz.classList.add('over'));
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',()=>dz.classList.remove('over'));
 function copyUrl(){
   navigator.clipboard.writeText(document.getElementById('rurl').textContent).then(()=>{
-    const b=document.querySelector('.copy-btn');b.textContent='copied!';
+    var b=document.querySelector('.copy-btn');b.textContent='copied!';
     setTimeout(()=>b.textContent='copy link',2000);
   });
 }
 </script>
-</body></html>"""
-
-
-def render_index(error="", page_id="", prefill="", host=""):
-    error_html = f'<div class="error">&#9888; {error}</div>' if error else ""
-    result_html = ""
-    if page_id:
-        url = f"{host}p/{page_id}"
-        result_html = (f'<div class="result">'
-                       f'<div><div class="rlabel">&#10003; your page is live</div>'
-                       f'<div class="rurl" id="rurl">{url}</div></div>'
-                       f'<button class="copy-btn" onclick="copyUrl()">copy link</button>'
-                       f'</div>')
-    safe = prefill.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    html = (INDEX_TMPL
-            .replace("%%CSS%%", COMMON_CSS)
-            .replace("%%ERROR%%", error_html)
-            .replace("%%RESULT%%", result_html)
-            .replace("%%PREFILL%%", safe))
-    return Response(html, mimetype="text/html")
-
-
-# ---------------------------------------------------------------------------
-# routes
-# ---------------------------------------------------------------------------
-
-@pages_bp.route("/")
-def index():
-    return render_index()
-
-
-@pages_bp.route("/share", methods=["POST"])
-def share():
-    content = None
-    if "file" in request.files and request.files["file"].filename:
-        f = request.files["file"]
-        if not f.filename.lower().endswith((".html", ".htm")):
-            return render_index(error="Only .html / .htm files are accepted.")
-        content = f.read().decode("utf-8", errors="replace")
-    else:
-        content = request.form.get("html", "").strip()
-
-    if not content:
-        return render_index(error="Please paste some HTML or upload a file.")
-
-    page_id = uuid.uuid4().hex[:10]
-    filepath = os.path.join(PAGES_DIR, f"{page_id}.html")
-    with open(filepath, "w", encoding="utf-8") as fh:
-        fh.write(content)
-    upsert_meta(page_id, size=len(content.encode("utf-8")))
-    return render_index(page_id=page_id, host=request.host_url)
-
-
-@pages_bp.route("/p/<page_id>")
-def view_page(page_id):
-    pid = re.sub(r"[^a-zA-Z0-9]", "", page_id)[:20]
-    meta = get_page_meta(pid)
-    if meta is None or not os.path.exists(os.path.join(PAGES_DIR, f"{pid}.html")):
-        return error_page(404, "Page not found",
-                          "This page doesn't exist or may have been deleted.",
-                          f"id: {pid}")
-    if meta.get("blocked"):
-        return error_page(451, "Page unavailable",
-                          "This page has been temporarily blocked by an administrator.",
-                          f"id: {pid}")
-    inc_hits(pid)
-    return send_from_directory(PAGES_DIR, f"{pid}.html", mimetype="text/html")
-
-
-@pages_bp.route("/p/<page_id>/source")
-def view_source(page_id):
-    pid = re.sub(r"[^a-zA-Z0-9]", "", page_id)[:20]
-    filepath = os.path.join(PAGES_DIR, f"{pid}.html")
-    if not os.path.exists(filepath):
-        return error_page(404, "Page not found",
-                          "That page doesn't exist.",
-                          f"id: {pid}")
-    with open(filepath, encoding="utf-8") as fh:
-        source = fh.read()
-    return render_index(prefill=source, page_id=pid, host=request.host_url)
+</body></html>
