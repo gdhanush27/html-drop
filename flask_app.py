@@ -9,7 +9,9 @@ htmldrop — single-file Flask HTML sharing app
   /admin         admin dashboard (password protected)
   /admin/action  bulk/single actions (POST)
 """
-import os, uuid, json, re
+import os, uuid, json, re, smtplib, hashlib, hmac, time, threading
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone
 from functools import wraps
 
@@ -48,9 +50,22 @@ DECKS_META = os.path.join(BASE, "decks_meta.json")
 os.makedirs(PAGES_DIR, exist_ok=True)
 os.makedirs(DECKS_DIR, exist_ok=True)
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")  # change this in production!
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")  
 SETTINGS_FILE = os.path.join(BASE, "settings.json")
 USERS_FILE = os.path.join(BASE, "users.json")
+
+# ---------------------------------------------------------------------------
+# email config
+# ---------------------------------------------------------------------------
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_APP_PASSWORD = os.environ.get("SMTP_APP_PASSWORD")
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+
+# in-memory token store: {token: {type, email, payload, expires}}
+_tokens = {}
+TOKEN_EXPIRY = 15 * 60  # 15 minutes
 
 # ---------------------------------------------------------------------------
 # settings helpers
@@ -78,6 +93,196 @@ def save_settings(s):
         json.dump(s, f, indent=2)
 
 # ---------------------------------------------------------------------------
+# email helpers
+# ---------------------------------------------------------------------------
+
+def send_email(to_email, subject, html_body):
+    """Send email synchronously. Returns True on success, False on failure."""
+    if not SMTP_EMAIL or not SMTP_APP_PASSWORD:
+        print("[EMAIL ERROR] SMTP_EMAIL or SMTP_APP_PASSWORD not configured.")
+        return False
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["From"] = f"htmldrop <{SMTP_EMAIL}>"
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(html_body, "html"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_APP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"[EMAIL ERROR] Failed to send to {to_email}: {e}")
+        return False
+
+def send_email_async(to_email, subject, html_body):
+    """Fire-and-forget email for notifications where delivery failure is acceptable."""
+    t = threading.Thread(target=send_email, args=(to_email, subject, html_body), daemon=True)
+    t.start()
+
+def _email_wrap(content):
+    """Wrap content in a styled email template."""
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#0c0c0e;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:520px;margin:40px auto;background:#141418;border:1px solid #252530;border-radius:8px;overflow:hidden;">
+<div style="background:linear-gradient(135deg,#1a3d1a,#141418);padding:28px 32px;border-bottom:1px solid #252530;">
+<div style="font-size:22px;font-weight:bold;color:#e8e8f0;letter-spacing:-.03em;">html<span style="color:#7fff7f">drop</span></div>
+</div>
+<div style="padding:28px 32px;color:#e8e8f0;font-size:14px;line-height:1.7;">
+{content}
+</div>
+<div style="padding:16px 32px;border-top:1px solid #252530;font-size:11px;color:#6b6b80;">
+This email was sent by htmldrop. If you didn't expect this, you can ignore it.
+</div>
+</div></body></html>"""
+
+def generate_token(token_type, email, payload=None):
+    """Create a time-limited token and store it in memory."""
+    # clean expired tokens
+    now = time.time()
+    expired = [k for k, v in _tokens.items() if v["expires"] < now]
+    for k in expired:
+        del _tokens[k]
+    token = uuid.uuid4().hex
+    _tokens[token] = {
+        "type": token_type,
+        "email": email,
+        "payload": payload or {},
+        "expires": now + TOKEN_EXPIRY,
+    }
+    return token
+
+def validate_token(token, expected_type):
+    """Return token data if valid, else None. Consumes the token."""
+    data = _tokens.get(token)
+    if not data:
+        return None
+    if data["type"] != expected_type:
+        return None
+    if time.time() > data["expires"]:
+        del _tokens[token]
+        return None
+    del _tokens[token]
+    return data
+
+def send_verification_email_with_url(email, site_url):
+    """Send email verification with the correct site URL. Returns True on success."""
+    token = generate_token("verify_email", email)
+    link = f"{site_url}verify-email?token={token}"
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#7fff7f;">Verify your email</h2>
+    <p>Click the button below to verify your email address. This link expires in 15 minutes.</p>
+    <a href="{link}" style="display:inline-block;background:#7fff7f;color:#0a1a0a;font-weight:bold;text-decoration:none;padding:12px 28px;border-radius:6px;margin:16px 0;">Verify Email &rarr;</a>
+    <p style="font-size:12px;color:#6b6b80;">If the button doesn't work, copy this link:<br/><span style="color:#7fcfff;word-break:break-all;">{link}</span></p>
+    """)
+    return send_email(email, "Verify your email — htmldrop", html)
+
+def send_welcome_email(email):
+    """Send account created welcome email (fire-and-forget notification)."""
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#7fff7f;">Welcome to htmldrop! &#127881;</h2>
+    <p>Your account <strong style="color:#7fcfff;">{email}</strong> has been created successfully.</p>
+    <p>You can now upload HTML pages and create slide decks. Please verify your email to unlock all features.</p>
+    <p style="color:#6b6b80;font-size:12px;margin-top:20px;">If you didn't create this account, please ignore this email.</p>
+    """)
+    send_email_async(email, "Welcome to htmldrop!", html)
+
+def send_password_changed_email(email):
+    """Notify user their password was changed (fire-and-forget)."""
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#ffd47f;">Password changed</h2>
+    <p>The password for <strong style="color:#7fcfff;">{email}</strong> was successfully changed.</p>
+    <p>If you didn't make this change, please contact the administrator immediately.</p>
+    """)
+    send_email_async(email, "Password changed — htmldrop", html)
+
+def send_email_changed_notification(old_email, new_email):
+    """Notify both old and new email about the change (fire-and-forget)."""
+    html_old = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#ffd47f;">Email address changed</h2>
+    <p>Your htmldrop account email has been changed from <strong style="color:#7fcfff;">{old_email}</strong> to <strong style="color:#7fcfff;">{new_email}</strong>.</p>
+    <p>If you didn't make this change, please contact the administrator immediately.</p>
+    """)
+    html_new = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#7fff7f;">Email address updated</h2>
+    <p>Your htmldrop account email has been updated to <strong style="color:#7fcfff;">{new_email}</strong>.</p>
+    <p>Please verify your new email address from your profile page.</p>
+    """)
+    send_email_async(old_email, "Email address changed — htmldrop", html_old)
+    send_email_async(new_email, "Email address updated — htmldrop", html_new)
+
+def send_blocked_email(email):
+    """Notify user their account was blocked (fire-and-forget)."""
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#ff7f7f;">Account blocked</h2>
+    <p>Your htmldrop account <strong style="color:#7fcfff;">{email}</strong> has been blocked by an administrator.</p>
+    <p>While blocked, you cannot log in or use your account. If you believe this is a mistake, please contact the administrator.</p>
+    """)
+    send_email_async(email, "Account blocked — htmldrop", html)
+
+def send_unblocked_email(email):
+    """Notify user their account was unblocked (fire-and-forget)."""
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#7fff7f;">Account unblocked</h2>
+    <p>Your htmldrop account <strong style="color:#7fcfff;">{email}</strong> has been unblocked. You can now log in and use your account again.</p>
+    """)
+    send_email_async(email, "Account unblocked — htmldrop", html)
+
+def send_account_deleted_email(email):
+    """Notify user their account was deleted by admin (fire-and-forget)."""
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#ff7f7f;">Account deleted</h2>
+    <p>Your htmldrop account <strong style="color:#7fcfff;">{email}</strong> has been deleted by an administrator.</p>
+    <p>All your account data has been removed. Your uploaded pages and decks may still exist.</p>
+    """)
+    send_email_async(email, "Account deleted — htmldrop", html)
+
+def send_page_pinned_email(owner_email, item_type, item_id, pin_name):
+    """Notify user one of their items was pinned (fire-and-forget)."""
+    label = pin_name or item_id
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#7fff7f;">Your {item_type} was featured! &#11088;</h2>
+    <p>Your {item_type} <strong style="color:#7fcfff;">{label}</strong> (<code style="color:#ffd47f;">{item_id}</code>) has been pinned to the htmldrop homepage by an administrator.</p>
+    <p>It will be featured as the hero content for all visitors to see!</p>
+    """)
+    send_email_async(owner_email, f"Your {item_type} was featured — htmldrop", html)
+
+def send_page_unpinned_email(owner_email, item_type, item_id):
+    """Notify user their pinned item was unpinned (fire-and-forget)."""
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#ffd47f;">Your {item_type} was unpinned</h2>
+    <p>Your {item_type} <code style="color:#ffd47f;">{item_id}</code> has been removed from the htmldrop homepage.</p>
+    """)
+    send_email_async(owner_email, f"Your {item_type} was unpinned — htmldrop", html)
+
+def send_delete_account_email(email, site_url):
+    """Send account deletion confirmation link. Returns True on success."""
+    token = generate_token("delete_account", email)
+    link = f"{site_url}confirm-delete-account?token={token}"
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#ff7f7f;">Confirm account deletion</h2>
+    <p>You requested to delete your htmldrop account <strong style="color:#7fcfff;">{email}</strong>.</p>
+    <p style="color:#ff7f7f;font-weight:bold;">This action is permanent and cannot be undone.</p>
+    <p>Your pages and decks will remain but will no longer be linked to an account.</p>
+    <a href="{link}" style="display:inline-block;background:#ff7f7f;color:#1a0a0a;font-weight:bold;text-decoration:none;padding:12px 28px;border-radius:6px;margin:16px 0;">Confirm Deletion &rarr;</a>
+    <p style="font-size:12px;color:#6b6b80;">This link expires in 15 minutes. If you didn't request this, just ignore this email.</p>
+    """)
+    return send_email(email, "Confirm account deletion — htmldrop", html)
+
+def send_change_password_email(email, site_url):
+    """Send password change confirmation link. Returns True on success."""
+    token = generate_token("change_password", email)
+    link = f"{site_url}confirm-change-password?token={token}"
+    html = _email_wrap(f"""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#ffd47f;">Confirm password change</h2>
+    <p>Click the link below to set a new password for <strong style="color:#7fcfff;">{email}</strong>.</p>
+    <a href="{link}" style="display:inline-block;background:#ffd47f;color:#1a1a0a;font-weight:bold;text-decoration:none;padding:12px 28px;border-radius:6px;margin:16px 0;">Change Password &rarr;</a>
+    <p style="font-size:12px;color:#6b6b80;">This link expires in 15 minutes.</p>
+    """)
+    return send_email(email, "Change your password — htmldrop", html)
+
+# ---------------------------------------------------------------------------
 # user helpers
 # ---------------------------------------------------------------------------
 
@@ -98,6 +303,7 @@ def create_user(email, password):
     users[email] = {
         "password_hash": generate_password_hash(password),
         "created": datetime.now(timezone.utc).isoformat(),
+        "email_verified": False,
     }
     save_users(users)
     return True
@@ -107,7 +313,20 @@ def verify_user(email, password):
     user = users.get(email)
     if not user:
         return False
+    if user.get("blocked"):
+        return None  # blocked
     return check_password_hash(user["password_hash"], password)
+
+def is_user_blocked(email):
+    users = load_users()
+    user = users.get(email)
+    return user.get("blocked", False) if user else False
+
+def delete_user_account(email):
+    """Delete a user from users.json (does NOT delete their pages/decks)."""
+    users = load_users()
+    users.pop(email, None)
+    save_users(users)
 
 def update_user(email, **fields):
     """Update arbitrary fields on a user record and persist to users.json."""
@@ -237,9 +456,19 @@ def admin_required(f):
 def _admin_redirect():
     tab = request.form.get("_tab", "")
     base = url_for("admin")
-    if tab in ("pages", "decks"):
+    if tab in ("pages", "decks", "users"):
         return redirect(f"{base}#{tab}")
     return redirect(base)
+
+def _get_item_owner(item_type, item_id):
+    """Return the owner email of a page or deck, or empty string."""
+    if item_type == "page":
+        info = load_meta().get(item_id)
+        return info.get("owner", "") if info else ""
+    elif item_type == "deck":
+        info = load_decks_meta().get(item_id)
+        return info.get("owner", "") if info else ""
+    return ""
 
 # ---------------------------------------------------------------------------
 # template rendering helpers
@@ -546,13 +775,104 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
 
     freeze_reg = settings.get("freeze_reg", False)
 
+    # build user rows HTML
+    users = load_users()
+    # count pages/decks per owner
+    owner_pages = {}
+    for pid, pinfo in meta.items():
+        o = pinfo.get("owner", "")
+        if o:
+            owner_pages[o] = owner_pages.get(o, 0) + 1
+    owner_decks = {}
+    for did, dinfo in decks_meta.items():
+        o = dinfo.get("owner", "")
+        if o:
+            owner_decks[o] = owner_decks.get(o, 0) + 1
+
+    user_list = []
+    for email, uinfo in users.items():
+        user_list.append({
+            "email": email,
+            "created": uinfo.get("created", ""),
+            "last_login": uinfo.get("last_login", ""),
+            "blocked": uinfo.get("blocked", False),
+            "pages": owner_pages.get(email, 0),
+            "decks": owner_decks.get(email, 0),
+        })
+    user_list.sort(key=lambda u: u.get("created", ""), reverse=True)
+    total_users = len(user_list)
+    blocked_users = sum(1 for u in user_list if u.get("blocked"))
+
+    if not user_list:
+        user_rows_html = '<tr class="user-empty-row"><td colspan="8"><div class="empty"><span class="empty-icon">&#9679;</span>No users yet.</div></td></tr>'
+    else:
+        user_rows = []
+        for u in user_list:
+            uemail = u["email"]
+            safe_email = uemail.replace('&','&amp;').replace('"','&quot;').replace('<','&lt;').replace('>','&gt;')
+            # js-safe email for onclick (escape single quotes)
+            js_email = safe_email.replace("'", "\\'")
+            ucreated = u.get("created", "")
+            ulast = u.get("last_login", "")
+            ublocked = u.get("blocked", False)
+            upages = u.get("pages", 0)
+            udecks = u.get("decks", 0)
+            ubadge = (f'<span class="bdg bdg-off"><span class="bdg-dot"></span>blocked</span>'
+                      if ublocked else
+                      f'<span class="bdg bdg-on"><span class="bdg-dot"></span>active</span>')
+            ublock_btn = (
+                f'<button class="act ok" onclick="doUserAction(\'unblock\',[\'{js_email}\'])">unblock</button>'
+                if ublocked else
+                f'<button class="act warn" onclick="doUserAction(\'block\',[\'{js_email}\'])">block</button>'
+            )
+            ublock_popup = (
+                f'<button class="ap-item ap-ok" onclick="doUserAction(\'unblock\',[\'{js_email}\']);closePopup()">&#8593; unblock</button>'
+                if ublocked else
+                f'<button class="ap-item ap-warn" onclick="doUserAction(\'block\',[\'{js_email}\']);closePopup()">&#8856; block</button>'
+            )
+            user_rows.append(
+                f'<tr id="urow-{safe_email}" class="user-row {"is-blocked" if ublocked else ""}"'
+                f' data-email="{safe_email}" data-created="{ucreated}" data-last-login="{ulast}"'
+                f' data-pages="{upages}" data-decks="{udecks}"'
+                f' data-status="{"blocked" if ublocked else "active"}">'
+                f'<td><input type="checkbox" class="cb user-cb" value="{safe_email}" onchange="updateUserBulk()"/></td>'
+                f'<td style="color:var(--info);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{safe_email}">{safe_email}</td>'
+                f'<td class="ts">{fmt_date(ucreated)}</td>'
+                f'<td class="ts">{fmt_date(ulast) if ulast else "<span style=color:var(--muted2)>never</span>"}</td>'
+                f'<td style="color:var(--accent)">{upages}</td>'
+                f'<td style="color:var(--warn)">{udecks}</td>'
+                f'<td>{ubadge}</td>'
+                f'<td>'
+                f'<div class="acts-desktop">'
+                f'<button class="act info" onclick="filterByUser(\'{js_email}\',\'pages\')">pages</button>'
+                f'<button class="act info" onclick="filterByUser(\'{js_email}\',\'decks\')">decks</button>'
+                f'{ublock_btn}'
+                f'<button class="act danger" onclick="confirmUserDelete([\'{js_email}\'])">delete</button>'
+                f'</div>'
+                f'<div class="acts-mobile">'
+                f'<div class="act-trigger">'
+                f'<button type="button" class="act-dots" onclick="togglePopup(this)" title="Actions">&#8943;</button>'
+                f'<div class="act-popup">'
+                f'<button class="ap-item ap-info" onclick="filterByUser(\'{js_email}\',\'pages\');closePopup()">&#128196; view pages</button>'
+                f'<button class="ap-item ap-info" onclick="filterByUser(\'{js_email}\',\'decks\');closePopup()">&#9707; view decks</button>'
+                f'<div class="ap-sep"></div>'
+                f'{ublock_popup}'
+                f'<div class="ap-sep"></div>'
+                f'<button class="ap-item ap-danger" onclick="confirmUserDelete([\'{js_email}\']);closePopup()">&#10005; delete</button>'
+                f'</div></div></div>'
+                f'</td></tr>'
+            )
+        user_rows_html = "\n".join(user_rows)
+
     return render_template("admin.html",
                            flash_html=flash_html,
                            freeze_pages=freeze_pages, freeze_decks=freeze_decks,
                            freeze_reg=freeze_reg,
                            total=total, total_hits=total_hits,
                            total_decks=total_decks, total_deck_hits=total_deck_hits,
-                           rows_html=rows_html, deck_rows_html=deck_rows_html)
+                           total_users=total_users, blocked_users=blocked_users,
+                           rows_html=rows_html, deck_rows_html=deck_rows_html,
+                           user_rows_html=user_rows_html)
 
 # ---------------------------------------------------------------------------
 # routes — pages
@@ -580,6 +900,12 @@ def share():
     if _is_frozen(fp):
         msg = "Uploading is restricted to logged-in users." if fp == "anon" else "Uploading new pages is currently disabled by the administrator."
         return render_index(error=msg)
+    # require verified email for logged-in users
+    current = get_current_user()
+    if current:
+        users = load_users()
+        if current in users and not users[current].get("email_verified", False):
+            return render_index(error="Please verify your email before uploading. Check your profile page.")
     content = None
     if "file" in request.files and request.files["file"].filename:
         f = request.files["file"]
@@ -649,6 +975,13 @@ def deck_import_zai():
         msg = "Deck creation is restricted to logged-in users." if fd == "anon" else "Creating new decks is currently disabled by the administrator."
         return Response(json.dumps({"error": msg}),
                         mimetype="application/json", status=403)
+    # require verified email
+    current = get_current_user()
+    if current:
+        users = load_users()
+        if current in users and not users[current].get("email_verified", False):
+            return Response(json.dumps({"error": "Please verify your email before creating decks."}),
+                            mimetype="application/json", status=403)
     data = request.get_json(silent=True) or {}
     pages = data.get("pages", [])
     if not pages or not isinstance(pages, list):
@@ -703,6 +1036,12 @@ def deck_save():
     if _is_frozen(fd):
         msg = "Deck creation is restricted to logged-in users." if fd == "anon" else "Creating new decks is currently disabled by the administrator."
         return render_deck_page(error=msg)
+    # require verified email
+    current = get_current_user()
+    if current:
+        users = load_users()
+        if current in users and not users[current].get("email_verified", False):
+            return render_deck_page(error="Please verify your email before creating decks. Check your profile page.")
     title = request.form.get("title", "").strip() or "Untitled Deck"
     slides = []
 
@@ -828,11 +1167,19 @@ def user_register():
         if password != confirm:
             return render_template("register.html", active_nav="",
                                    error_html='<div class="err">&#9888; passwords do not match</div>')
+        if not request.form.get("tos"):
+            return render_template("register.html", active_nav="",
+                                   error_html='<div class="err">&#9888; you must agree to the terms &amp; conditions</div>')
         if not create_user(email, password):
             return render_template("register.html", active_nav="",
                                    error_html='<div class="err">&#9888; an account with this email already exists</div>')
         session["user_email"] = email
         update_user(email, last_login=datetime.now(timezone.utc).isoformat(), last_action="register")
+        # send welcome + verification emails
+        send_welcome_email(email)
+        if not send_verification_email_with_url(email, request.host_url):
+            session["profile_flash"] = "Account created, but verification email failed. Please try again later from your profile."
+            session["profile_flash_type"] = "err"
         return redirect(url_for("profile"))
     return render_template("register.html", active_nav="", error_html="")
 
@@ -846,7 +1193,11 @@ def user_login():
         if not email or not password:
             return render_template("user_login.html", active_nav="",
                                    error_html='<div class="err">&#9888; email and password are required</div>')
-        if not verify_user(email, password):
+        result = verify_user(email, password)
+        if result is None:
+            return render_template("user_login.html", active_nav="",
+                                   error_html='<div class="err">&#9888; your account has been blocked by an administrator</div>')
+        if not result:
             return render_template("user_login.html", active_nav="",
                                    error_html='<div class="err">&#9888; invalid email or password</div>')
         session["user_email"] = email
@@ -884,9 +1235,13 @@ def profile():
             user_decks.append({**dinfo, "id": did})
     user_decks.sort(key=lambda d: d.get("created", ""), reverse=True)
 
+    users = load_users()
+    email_verified = users.get(email, {}).get("email_verified", False)
+
     return render_template("profile.html", active_nav="profile",
                            email=email, pages=user_pages, decks=user_decks,
-                           flash_msg=flash_msg, flash_type=flash_type)
+                           flash_msg=flash_msg, flash_type=flash_type,
+                           email_verified=email_verified)
 
 
 @app.route("/profile/delete_page", methods=["POST"])
@@ -924,6 +1279,199 @@ def profile_delete_deck():
 
 
 # ---------------------------------------------------------------------------
+# routes — email verification & account management
+# ---------------------------------------------------------------------------
+
+@app.route("/verify-email")
+def verify_email():
+    token = request.args.get("token", "")
+    data = validate_token(token, "verify_email")
+    if not data:
+        return error_page(400, "Invalid or expired link",
+                          "This verification link is invalid or has expired.",
+                          "Request a new verification email from your profile page.")
+    email = data["email"]
+    users = load_users()
+    if email in users:
+        users[email]["email_verified"] = True
+        save_users(users)
+    if session.get("user_email") == email:
+        session["profile_flash"] = "Email verified successfully!"
+        session["profile_flash_type"] = "ok"
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile/resend-verification", methods=["POST"])
+@login_required
+@limiter.limit("3 per minute")
+def resend_verification():
+    email = get_current_user()
+    users = load_users()
+    if email in users and users[email].get("email_verified"):
+        session["profile_flash"] = "Email is already verified."
+        session["profile_flash_type"] = "ok"
+    else:
+        if send_verification_email_with_url(email, request.host_url):
+            session["profile_flash"] = "Verification email sent! Check your inbox."
+            session["profile_flash_type"] = "ok"
+        else:
+            session["profile_flash"] = "Failed to send verification email. Please try again later."
+            session["profile_flash_type"] = "err"
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile/request-change-password", methods=["POST"])
+@login_required
+@limiter.limit("3 per minute")
+def request_change_password():
+    """Send a password change link to the user's email."""
+    email = get_current_user()
+    if send_change_password_email(email, request.host_url):
+        session["profile_flash"] = "Password change link sent to your email."
+        session["profile_flash_type"] = "ok"
+    else:
+        session["profile_flash"] = "Failed to send email. Please try again later."
+        session["profile_flash_type"] = "err"
+    return redirect(url_for("profile"))
+
+
+@app.route("/confirm-change-password", methods=["GET", "POST"])
+def confirm_change_password():
+    if request.method == "GET":
+        token = request.args.get("token", "")
+        # peek at the token without consuming it
+        data = _tokens.get(token)
+        if not data or data["type"] != "change_password" or time.time() > data["expires"]:
+            return error_page(400, "Invalid or expired link",
+                              "This password change link is invalid or has expired.",
+                              "Request a new one from your profile page.")
+        return render_template("change_password.html", token=token, error_html="")
+
+    # POST - actually change the password
+    token = request.form.get("token", "")
+    new_password = request.form.get("new_password", "").strip()
+    confirm = request.form.get("confirm", "").strip()
+
+    if not new_password or len(new_password) < 6:
+        return render_template("change_password.html", token=token,
+                               error_html='<div class="err">&#9888; password must be at least 6 characters</div>')
+    if new_password != confirm:
+        return render_template("change_password.html", token=token,
+                               error_html='<div class="err">&#9888; passwords do not match</div>')
+
+    data = validate_token(token, "change_password")
+    if not data:
+        return error_page(400, "Invalid or expired link",
+                          "This password change link is invalid or has expired.",
+                          "Request a new one from your profile page.")
+    email = data["email"]
+    users = load_users()
+    if email in users:
+        users[email]["password_hash"] = generate_password_hash(new_password)
+        save_users(users)
+        send_password_changed_email(email)
+    if session.get("user_email") == email:
+        session["profile_flash"] = "Password changed successfully!"
+        session["profile_flash_type"] = "ok"
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile/change-email", methods=["POST"])
+@login_required
+@limiter.limit("3 per minute")
+def change_email():
+    """Change email requires current password verification."""
+    email = get_current_user()
+    password = request.form.get("password", "").strip()
+    new_email = request.form.get("new_email", "").strip().lower()
+
+    if not password or not new_email:
+        session["profile_flash"] = "Password and new email are required."
+        session["profile_flash_type"] = "err"
+        return redirect(url_for("profile"))
+
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", new_email):
+        session["profile_flash"] = "Please enter a valid email address."
+        session["profile_flash_type"] = "err"
+        return redirect(url_for("profile"))
+
+    users = load_users()
+    if email not in users:
+        return redirect(url_for("user_login"))
+
+    if not check_password_hash(users[email]["password_hash"], password):
+        session["profile_flash"] = "Incorrect password."
+        session["profile_flash_type"] = "err"
+        return redirect(url_for("profile"))
+
+    if new_email in users:
+        session["profile_flash"] = "An account with that email already exists."
+        session["profile_flash_type"] = "err"
+        return redirect(url_for("profile"))
+
+    # move user data to new email key
+    user_data = users.pop(email)
+    user_data["email_verified"] = False
+    users[new_email] = user_data
+    save_users(users)
+
+    # update ownership of pages and decks
+    meta = load_meta()
+    for pid, info in meta.items():
+        if info.get("owner") == email:
+            info["owner"] = new_email
+    save_meta(meta)
+
+    dm = load_decks_meta()
+    for did, dinfo in dm.items():
+        if dinfo.get("owner") == email:
+            dinfo["owner"] = new_email
+    save_decks_meta(dm)
+
+    session["user_email"] = new_email
+    send_email_changed_notification(email, new_email)
+    if send_verification_email_with_url(new_email, request.host_url):
+        session["profile_flash"] = f"Email changed to {new_email}. Please verify your new email."
+        session["profile_flash_type"] = "ok"
+    else:
+        session["profile_flash"] = f"Email changed to {new_email}, but verification email failed. Please try again later."
+        session["profile_flash_type"] = "err"
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile/request-delete-account", methods=["POST"])
+@login_required
+@limiter.limit("3 per minute")
+def request_delete_account():
+    """Send account deletion confirmation email."""
+    email = get_current_user()
+    if send_delete_account_email(email, request.host_url):
+        session["profile_flash"] = "Account deletion link sent to your email. Check your inbox."
+        session["profile_flash_type"] = "ok"
+    else:
+        session["profile_flash"] = "Failed to send email. Please try again later."
+        session["profile_flash_type"] = "err"
+    return redirect(url_for("profile"))
+
+
+@app.route("/confirm-delete-account")
+def confirm_delete_account():
+    token = request.args.get("token", "")
+    data = validate_token(token, "delete_account")
+    if not data:
+        return error_page(400, "Invalid or expired link",
+                          "This deletion link is invalid or has expired.",
+                          "Request a new one from your profile page.")
+    email = data["email"]
+    delete_user_account(email)
+    if session.get("user_email") == email:
+        session.pop("user_email", None)
+    return error_page(200, "Account deleted",
+                      "Your htmldrop account has been permanently deleted.",
+                      "Your pages and decks still exist but are no longer linked to an account.")
+
+
+# ---------------------------------------------------------------------------
 # routes — admin
 # ---------------------------------------------------------------------------
 
@@ -931,11 +1479,13 @@ def profile_delete_deck():
 @limiter.limit("5 per minute")
 def admin_login():
     if request.method == "POST":
-        if request.form.get("password", "") == ADMIN_PASSWORD:
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session["admin"] = True
             return redirect(url_for("admin"))
         return render_template("login.html",
-                               error_html='<div class="err">&#9888; incorrect password</div>')
+                               error_html='<div class="err">&#9888; incorrect username or password</div>')
     return render_template("login.html", error_html="")
 
 
@@ -1042,6 +1592,10 @@ def admin_pin():
         label = pin_name or item_id
         session["flash"] = f'Pinned {item_type} as homepage hero: "{label}".'
         session["flash_type"] = "ok"
+        # notify owner
+        owner = _get_item_owner(item_type, item_id)
+        if owner:
+            send_page_pinned_email(owner, item_type, item_id, pin_name)
     elif action == "rename":
         if current and current.get("type") == item_type and current.get("id") == item_id:
             pin_name = request.form.get("name", "").strip()[:80]
@@ -1058,12 +1612,60 @@ def admin_pin():
             s["pinned"] = None
             session["flash"] = f"Unpinned {item_type} {item_id}."
             session["flash_type"] = "ok"
+            # notify owner
+            owner = _get_item_owner(item_type, item_id)
+            if owner:
+                send_page_unpinned_email(owner, item_type, item_id)
         else:
             session["flash"] = "That item is not currently pinned."
             session["flash_type"] = "err"
     save_settings(s)
     return _admin_redirect()
 
+
+@app.route("/admin/user/action", methods=["POST"])
+@admin_required
+def admin_user_action():
+    op   = request.form.get("op", "")
+    raw  = request.form.get("ids", "")
+    # emails can contain @, ., etc so we split by comma
+    ids  = [e.strip() for e in raw.split(",") if e.strip()]
+
+    if not ids:
+        session["flash"] = "No users selected."
+        session["flash_type"] = "err"
+    elif op == "delete":
+        for email in ids:
+            send_account_deleted_email(email)
+            delete_user_account(email)
+        n = len(ids)
+        session["flash"] = f"Deleted {n} user{'s' if n != 1 else ''}."
+        session["flash_type"] = "ok"
+    elif op == "block":
+        users = load_users()
+        for email in ids:
+            if email in users:
+                users[email]["blocked"] = True
+                send_blocked_email(email)
+        save_users(users)
+        n = len(ids)
+        session["flash"] = f"Blocked {n} user{'s' if n != 1 else ''}."
+        session["flash_type"] = "ok"
+    elif op == "unblock":
+        users = load_users()
+        for email in ids:
+            if email in users:
+                users[email]["blocked"] = False
+                send_unblocked_email(email)
+        save_users(users)
+        n = len(ids)
+        session["flash"] = f"Unblocked {n} user{'s' if n != 1 else ''}."
+        session["flash_type"] = "ok"
+    else:
+        session["flash"] = f"Unknown operation: {op}"
+        session["flash_type"] = "err"
+
+    return _admin_redirect()
 
 @app.route("/admin/deck/action", methods=["POST"])
 @admin_required

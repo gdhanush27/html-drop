@@ -83,7 +83,31 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     .btn-ghost:hover{color:var(--text);border-color:var(--border2);}
     .btn-danger{background:none;border-color:rgba(255,127,127,.4);color:var(--accent2);}
     .btn-danger:hover{background:var(--accent2-dim);}
-    @media(max-width:600px){.stats{grid-template-columns:1fr;}}
+    .btn-warn{background:none;border-color:rgba(255,212,127,.4);color:var(--warn);}
+    .btn-warn:hover{background:var(--warn-dim);}
+    .verify-banner{background:var(--warn-dim);border:1px solid rgba(255,212,127,.3);border-radius:var(--r);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .verify-banner .vb-text{font-family:var(--mono);font-size:.78rem;color:var(--warn);}
+    .verify-banner .vb-btn{font-family:var(--mono);font-size:.7rem;color:#1a1a0a;background:var(--warn);border:none;border-radius:var(--r);padding:6px 14px;cursor:pointer;white-space:nowrap;font-weight:600;transition:transform .15s;}
+    .verify-banner .vb-btn:hover{transform:translateY(-1px);}
+    .verified-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:.65rem;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(127,255,127,.3);border-radius:var(--r);padding:3px 8px;}
+    .unverified-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:.65rem;color:var(--warn);background:var(--warn-dim);border:1px solid rgba(255,212,127,.3);border-radius:var(--r);padding:3px 8px;}
+    .settings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:14px;}
+    .settings-title{font-family:var(--mono);font-size:.72rem;color:var(--text);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+    .settings-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;}
+    .settings-row label{font-family:var(--mono);font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
+    .settings-row input[type=email],.settings-row input[type=password]{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.8rem;padding:8px 10px;outline:none;transition:border-color .2s;width:100%;}
+    .settings-row input:focus{border-color:var(--border2);}
+    .settings-row .field{flex:1;min-width:160px;}
+    .settings-btn{font-family:var(--mono);font-size:.7rem;border-radius:var(--r);padding:8px 14px;cursor:pointer;border:1px solid;transition:background .15s,transform .15s;white-space:nowrap;font-weight:600;align-self:flex-end;}
+    .settings-btn-primary{background:var(--accent-dim);border-color:rgba(127,255,127,.3);color:var(--accent);}
+    .settings-btn-primary:hover{background:rgba(127,255,127,.15);}
+    .settings-btn-warn{background:var(--warn-dim);border-color:rgba(255,212,127,.3);color:var(--warn);}
+    .settings-btn-warn:hover{background:rgba(255,212,127,.15);}
+    .settings-btn-danger{background:var(--accent2-dim);border-color:rgba(255,127,127,.3);color:var(--accent2);}
+    .settings-btn-danger:hover{background:rgba(255,127,127,.15);}
+    .danger-zone{border-color:rgba(255,127,127,.2);}
+    .settings-help{font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-top:8px;line-height:1.5;}
+    @media(max-width:600px){.stats{grid-template-columns:1fr;} .settings-row{flex-direction:column;} .settings-row .field{min-width:0;width:100%;} .settings-btn{width:100%;text-align:center;}}
   </style>
 </head>
 <body>
@@ -98,7 +122,14 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
       <div class="profile-info">
         <div class="profile-avatar">{{ email[0]|upper }}</div>
         <div>
-          <div class="profile-email">{{ email }}</div>
+          <div class="profile-email">
+            {{ email }}
+            {% if email_verified %}
+            <span class="verified-badge">&#10003; verified</span>
+            {% else %}
+            <span class="unverified-badge">&#9888; unverified</span>
+            {% endif %}
+          </div>
           <div class="profile-label">your account</div>
         </div>
       </div>
@@ -106,6 +137,15 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
         <button type="submit" class="logout-btn">logout</button>
       </form>
     </div>
+
+    {% if not email_verified %}
+    <div class="verify-banner">
+      <span class="vb-text">&#9888; Verify your email to unlock uploading pages and creating decks.</span>
+      <form method="POST" action="/profile/resend-verification" style="margin:0">
+        <button type="submit" class="vb-btn">Send verification email</button>
+      </form>
+    </div>
+    {% endif %}
 
     <div class="stats">
       <div class="stat-card"><div class="stat-label">your pages</div><div class="stat-value">{{ pages|length }}</div></div>
@@ -162,6 +202,48 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     {% else %}
     <div class="empty"><span class="empty-icon">&#9707;</span>No decks yet. <a href="/deck">Create your first deck &rarr;</a></div>
     {% endif %}
+
+    <!-- Account Settings -->
+    <div class="section-head" style="margin-top:32px;">
+      <span>&#9881; account settings</span>
+    </div>
+
+    <!-- Change Password -->
+    <div class="settings-section">
+      <div class="settings-title">&#128274; Change password</div>
+      <p class="settings-help">A confirmation link will be sent to your email. You'll set your new password from there.</p>
+      <form method="POST" action="/profile/request-change-password" style="margin-top:12px;">
+        <button type="submit" class="settings-btn settings-btn-warn">Send password change link</button>
+      </form>
+    </div>
+
+    <!-- Change Email -->
+    <div class="settings-section">
+      <div class="settings-title">&#9993; Change email</div>
+      <p class="settings-help">Enter your current password and new email address. A verification email will be sent to your new address.</p>
+      <form method="POST" action="/profile/change-email" style="margin-top:12px;">
+        <div class="settings-row">
+          <div class="field">
+            <label>current password</label>
+            <input type="password" name="password" required placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"/>
+          </div>
+          <div class="field">
+            <label>new email</label>
+            <input type="email" name="new_email" required placeholder="new@example.com"/>
+          </div>
+          <button type="submit" class="settings-btn settings-btn-primary">Change email</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Delete Account -->
+    <div class="settings-section danger-zone">
+      <div class="settings-title" style="color:var(--accent2);">&#9888; Delete account</div>
+      <p class="settings-help">A confirmation link will be sent to your email. Your pages and decks will not be deleted, but they will no longer be linked to your account. This action is permanent.</p>
+      <form method="POST" action="/profile/request-delete-account" style="margin-top:12px;">
+        <button type="submit" class="settings-btn settings-btn-danger" onclick="return confirm('Are you sure? A deletion confirmation email will be sent.')">Request account deletion</button>
+      </form>
+    </div>
   </main>
   <footer>
     <span>htmldrop &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span>

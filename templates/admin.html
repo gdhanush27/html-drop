@@ -42,7 +42,7 @@ main{flex:1;padding:26px 0;animation:fadeU .4s ease .1s both;}
 .admin-panel{display:none;}
 .admin-panel.active{display:block;animation:fadeIn .2s ease;}
 
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;}
 .stat-label{font-family:var(--mono);font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;}
 .stat-value{font-size:1.7rem;font-weight:800;letter-spacing:-.03em;}
@@ -50,6 +50,7 @@ main{flex:1;padding:26px 0;animation:fadeU .4s ease .1s both;}
 .sv-red{color:var(--accent2);}
 .sv-yellow{color:var(--warn);}
 .sv-blue{color:var(--info);}
+.sv-purple{color:#bf7fff;}
 
 .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
 .search-wrap{position:relative;flex:1;min-width:180px;}
@@ -204,12 +205,9 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
 .fm-red{background:var(--accent2-dim);color:var(--accent2);}
 .fm-red:hover{background:var(--accent2-dim);color:var(--accent2);}
 
-/* -- freeze cards: tablet -- */
 @media(max-width:900px){
   .freeze-grid{grid-template-columns:repeat(2,1fr);}
 }
-
-/* -- freeze cards: mobile -- */
 @media(max-width:600px){
   .freeze-grid{grid-template-columns:1fr;gap:10px;margin-bottom:20px;}
   .freeze-card{padding:14px 16px;gap:10px;flex-direction:row;align-items:center;flex-wrap:wrap;}
@@ -308,12 +306,14 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
       <div class="stat-card"><div class="stat-label">page hits</div><div class="stat-value sv-blue">{{ total_hits }}</div></div>
       <div class="stat-card"><div class="stat-label">total decks</div><div class="stat-value sv-yellow">{{ total_decks }}</div></div>
       <div class="stat-card"><div class="stat-label">deck hits</div><div class="stat-value sv-green">{{ total_deck_hits }}</div></div>
+      <div class="stat-card"><div class="stat-label">total users</div><div class="stat-value sv-purple">{{ total_users }}</div></div>
     </div>
 
     <!-- ADMIN TABS -->
     <div class="admin-tabs">
       <button class="admin-tab active" data-tab="pages" onclick="switchAdminTab('pages',this)">&#128196; Pages <span class="tab-count">{{ total }}</span></button>
       <button class="admin-tab" data-tab="decks" onclick="switchAdminTab('decks',this)">&#9707; Decks <span class="tab-count">{{ total_decks }}</span></button>
+      <button class="admin-tab" data-tab="users" onclick="switchAdminTab('users',this)">&#9679; Users <span class="tab-count">{{ total_users }}</span></button>
     </div>
 
     <!-- PAGES PANEL -->
@@ -419,11 +419,60 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
       </div>
     </div>
 
+    <!-- USERS PANEL -->
+    <div id="panel-users" class="admin-panel">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">&#128269;</span>
+          <input id="uq-input" type="text" placeholder="search by email&#8230;" value="" oninput="filterUsers()"/>
+        </div>
+        <select id="us-select" onchange="filterUsers()">
+          <option value="all">all users</option>
+          <option value="active">active only</option>
+          <option value="blocked">blocked only</option>
+        </select>
+        <span class="result-count" id="u-result-count">{{ total_users }} result{{ 's' if total_users != 1 else '' }}</span>
+      </div>
+
+      <div class="sel-controls">
+        <button class="sel-btn" onclick="selectAllUsers()">select all users</button>
+        <button class="sel-btn" onclick="selectNoUsers()">deselect all</button>
+      </div>
+
+      <div class="bulk-bar" id="user-bulk-bar">
+        <span class="bulk-info" id="user-bulk-info">0 selected</span>
+        <div class="bulk-acts">
+          <button class="btn btn-success" onclick="bulkUserAction('unblock')">&#8593; unblock</button>
+          <button class="btn btn-warn" onclick="bulkUserAction('block')">&#8856; block</button>
+          <button class="btn btn-danger" onclick="bulkUserAction('delete')">&#10005; delete</button>
+          <button class="btn btn-ghost" onclick="selectNoUsers()">cancel</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="users-table">
+          <thead>
+            <tr>
+              <th style="width:36px"><input type="checkbox" class="cb" id="ucb-all" onchange="toggleAllUsers(this)"/></th>
+              <th class="sortable" onclick="sortUsers('email')">email</th>
+              <th class="sortable" onclick="sortUsers('created')">created</th>
+              <th class="sortable" onclick="sortUsers('last-login')">last login</th>
+              <th class="sortable" onclick="sortUsers('pages')">pages</th>
+              <th class="sortable" onclick="sortUsers('decks')">decks</th>
+              <th class="sortable" onclick="sortUsers('status')">status</th>
+              <th>actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">{{ user_rows_html|safe }}</tbody>
+        </table>
+      </div>
+    </div>
+
   </main>
 
   <footer>
     <span>htmldrop admin &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span>
-    <span>managing {{ total }} page{{ 's' if total != 1 else '' }} &amp; {{ total_decks }} deck{{ 's' if total_decks != 1 else '' }}</span>
+    <span>managing {{ total }} page{{ 's' if total != 1 else '' }}, {{ total_decks }} deck{{ 's' if total_decks != 1 else '' }} &amp; {{ total_users }} user{{ 's' if total_users != 1 else '' }}</span>
   </footer>
 </div>
 
@@ -439,13 +488,19 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
   <input type="hidden" name="_tab" id="fd-tab"/>
 </form>
 
+<form id="user-act-form" method="POST" action="/admin/user/action" style="display:none">
+  <input type="hidden" name="op" id="fu-op"/>
+  <input type="hidden" name="ids" id="fu-ids"/>
+  <input type="hidden" name="_tab" id="fu-tab"/>
+</form>
+
 <div class="modal-overlay" id="modal">
   <div class="modal">
-    <h3 id="m-title">Confirm delete</h3>
+    <h3 id="m-title">Confirm</h3>
     <p id="m-body">This will permanently remove the selected items.</p>
     <div class="modal-acts">
       <button class="btn btn-ghost" onclick="closeModal()">cancel</button>
-      <button class="btn btn-danger" onclick="submitAction()">delete</button>
+      <button class="btn btn-danger" id="m-confirm-btn" onclick="submitAction()">delete</button>
     </div>
   </div>
 </div>
@@ -463,15 +518,18 @@ document.addEventListener('submit', function(e) {
 
 /* action popup */
 var openPopup = null;
+var openPopupParent = null;
 function togglePopup(btn) {
   var popup = btn.nextElementSibling;
-  if (openPopup && openPopup !== popup) { openPopup.classList.remove('open'); }
+  if (openPopup && openPopup !== popup) { closePopup(); }
   var wasOpen = popup.classList.contains('open');
   if (wasOpen) {
-    popup.classList.remove('open');
-    openPopup = null;
+    closePopup();
     return;
   }
+  /* Move popup to body so it escapes overflow:auto containers on mobile */
+  openPopupParent = popup.parentNode;
+  document.body.appendChild(popup);
   popup.style.visibility = 'hidden';
   popup.style.top = '0px';
   popup.style.left = '0px';
@@ -492,10 +550,15 @@ function togglePopup(btn) {
   openPopup = popup;
 }
 function closePopup() {
-  if (openPopup) { openPopup.classList.remove('open'); openPopup = null; }
+  if (openPopup) {
+    openPopup.classList.remove('open');
+    /* Return popup to its original parent in the DOM */
+    if (openPopupParent) { openPopupParent.appendChild(openPopup); openPopupParent = null; }
+    openPopup = null;
+  }
 }
 document.addEventListener('click', function(e) {
-  if (openPopup && !e.target.closest('.act-trigger')) closePopup();
+  if (openPopup && !e.target.closest('.act-trigger') && !e.target.closest('.act-popup')) closePopup();
 });
 document.addEventListener('scroll', closePopup, true);
 
@@ -509,7 +572,7 @@ function switchAdminTab(name, btn) {
 }
 (function(){
   var hash = location.hash.replace('#','');
-  if (hash === 'pages' || hash === 'decks') {
+  if (hash === 'pages' || hash === 'decks' || hash === 'users') {
     var btn = document.querySelector('.admin-tab[data-tab="' + hash + '"]');
     if (btn) switchAdminTab(hash, btn);
   }
@@ -566,7 +629,7 @@ function sortPages(key) {
   rows.forEach(function(r) { tbody.appendChild(r); });
   document.querySelectorAll('#pages-table thead th.sortable').forEach(function(th) {
     th.classList.remove('sorted');
-    th.innerHTML = th.innerHTML.replace(/ \u2193| \u2191/g, '');
+    th.innerHTML = th.innerHTML.replace(/ ↓| ↑/g, '');
   });
   var idx = {'created':3,'size':4,'hits':5,'status':6}[key];
   if (idx !== undefined) {
@@ -628,7 +691,7 @@ function sortDecks(key) {
   rows.forEach(function(r) { tbody.appendChild(r); });
   document.querySelectorAll('#decks-table thead th.sortable').forEach(function(th) {
     th.classList.remove('sorted');
-    th.innerHTML = th.innerHTML.replace(/ \u2193| \u2191/g, '');
+    th.innerHTML = th.innerHTML.replace(/ ↓| ↑/g, '');
   });
   var idx = {'created':4,'slides':5,'hits':6,'status':7}[key];
   if (idx !== undefined) {
@@ -638,8 +701,89 @@ function sortDecks(key) {
   }
 }
 
+/* users: client-side filtering & sorting */
+var userSortKey = 'created', userSortDir = 'desc';
+
+function filterUsers() {
+  var q = document.getElementById('uq-input').value.toLowerCase();
+  var status = document.getElementById('us-select').value;
+  var rows = document.querySelectorAll('#users-tbody .user-row');
+  var visible = 0;
+  rows.forEach(function(r) {
+    var email = (r.dataset.email || '').toLowerCase();
+    var st = r.dataset.status;
+    var show = true;
+    if (q && email.indexOf(q) === -1) show = false;
+    if (status !== 'all' && st !== status) show = false;
+    r.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('u-result-count').textContent = visible + ' result' + (visible !== 1 ? 's' : '');
+  var emptyRow = document.querySelector('#users-tbody .user-empty-row');
+  if (emptyRow) emptyRow.style.display = visible === 0 ? '' : 'none';
+}
+
+function sortUsers(key) {
+  if (userSortKey === key) {
+    userSortDir = userSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    userSortKey = key;
+    userSortDir = 'desc';
+  }
+  var tbody = document.getElementById('users-tbody');
+  var rows = Array.from(tbody.querySelectorAll('.user-row'));
+  rows.sort(function(a, b) {
+    var av, bv;
+    if (key === 'pages' || key === 'decks') {
+      av = parseInt(a.dataset[key]) || 0;
+      bv = parseInt(b.dataset[key]) || 0;
+    } else if (key === 'status') {
+      av = a.dataset.status === 'blocked' ? 1 : 0;
+      bv = b.dataset.status === 'blocked' ? 1 : 0;
+    } else if (key === 'email') {
+      av = (a.dataset.email || '').toLowerCase();
+      bv = (b.dataset.email || '').toLowerCase();
+    } else if (key === 'last-login') {
+      av = a.dataset.lastLogin || '';
+      bv = b.dataset.lastLogin || '';
+    } else {
+      av = a.dataset[key] || '';
+      bv = b.dataset[key] || '';
+    }
+    if (av < bv) return userSortDir === 'asc' ? -1 : 1;
+    if (av > bv) return userSortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  rows.forEach(function(r) { tbody.appendChild(r); });
+  document.querySelectorAll('#users-table thead th.sortable').forEach(function(th) {
+    th.classList.remove('sorted');
+    th.innerHTML = th.innerHTML.replace(/ ↓| ↑/g, '');
+  });
+  var idx = {'email':1,'created':2,'last-login':3,'pages':4,'decks':5,'status':6}[key];
+  if (idx !== undefined) {
+    var thEl = document.querySelectorAll('#users-table thead th')[idx];
+    thEl.classList.add('sorted');
+    thEl.innerHTML += userSortDir === 'desc' ? ' &#8595;' : ' &#8593;';
+  }
+}
+
+/* filterByUser: switch to pages/decks tab and filter by user email */
+function filterByUser(email, tab) {
+  if (tab === 'pages') {
+    var btn = document.querySelector('.admin-tab[data-tab="pages"]');
+    if (btn) switchAdminTab('pages', btn);
+    document.getElementById('pq-input').value = email;
+    filterPages();
+  } else if (tab === 'decks') {
+    var btn2 = document.querySelector('.admin-tab[data-tab="decks"]');
+    if (btn2) switchAdminTab('decks', btn2);
+    document.getElementById('dq-input').value = email;
+    filterDecks();
+  }
+}
+
 /* pages: bulk selection */
-var pendingOp='', pendingIds=[];
+var pendingOp='', pendingIds=[], pendingTarget='pages';
 
 function getChecked(){return [...document.querySelectorAll('.row-cb:checked')].map(c=>c.value);}
 function updateBulk(){
@@ -661,20 +805,18 @@ function selectNone(){document.querySelectorAll('.row-cb').forEach(function(c){c
 function invertSel(){document.querySelectorAll('.row-cb').forEach(function(c){c.checked=!c.checked});updateBulk();}
 
 function doAction(op,ids){
-  pendingOp=op; pendingIds=ids; pendingDeckOp=''; pendingDeckIds=[];
-  if(op==='delete'){showModal(ids);return;}
-  submit();
+  pendingOp=op; pendingIds=ids; pendingTarget='pages';
+  if(op==='delete'){showModal('Delete '+(ids.length===1?'this page':ids.length+' pages')+'?','This will permanently remove '+(ids.length===1?'this page':'these '+ids.length+' pages')+'. It cannot be undone.');return;}
+  submitPageAction();
 }
 function bulkAction(op){
   var sel=getChecked();
   if(!sel.length)return;
   doAction(op,sel);
 }
-function confirmDelete(ids){pendingOp='delete';pendingIds=ids;pendingDeckOp='';pendingDeckIds=[];showModal(ids);}
+function confirmDelete(ids){doAction('delete',ids);}
 
 /* deck bulk ops */
-var pendingDeckOp='', pendingDeckIds=[];
-
 function getDeckChecked(){return [...document.querySelectorAll('.deck-cb:checked')].map(c=>c.value);}
 function updateDeckBulk(){
   var sel=getDeckChecked(), n=sel.length;
@@ -694,8 +836,8 @@ function selectAllDecks(){document.querySelectorAll('.deck-cb').forEach(function
 function selectNoDecks(){document.querySelectorAll('.deck-cb').forEach(function(c){c.checked=false});updateDeckBulk();}
 
 function doDeckAction(op,ids){
-  pendingDeckOp=op; pendingDeckIds=ids;
-  if(op==='delete'){confirmDeckDelete(ids);return;}
+  pendingOp=op; pendingIds=ids; pendingTarget='decks';
+  if(op==='delete'){showModal('Delete '+(ids.length===1?'this deck':ids.length+' decks')+'?','This will permanently remove '+(ids.length===1?'this deck and all its slides':'these '+ids.length+' decks and all their slides')+'. It cannot be undone.');return;}
   submitDeckAction();
 }
 function bulkDeckAction(op){
@@ -703,46 +845,71 @@ function bulkDeckAction(op){
   if(!sel.length)return;
   doDeckAction(op,sel);
 }
-function confirmDeckDelete(ids){
-  pendingDeckOp='delete'; pendingDeckIds=ids;
-  var n=ids.length;
-  document.getElementById('m-title').textContent='Delete '+(n===1?'this deck':n+' decks')+'?';
-  document.getElementById('m-body').textContent='This will permanently remove '+(n===1?'this deck and all its slides':'these '+n+' decks and all their slides')+'. It cannot be undone.';
-  document.getElementById('modal').classList.add('open');
+function confirmDeckDelete(ids){doDeckAction('delete',ids);}
+
+/* user bulk ops */
+function getUserChecked(){return [...document.querySelectorAll('.user-cb:checked')].map(c=>c.value);}
+function updateUserBulk(){
+  var sel=getUserChecked(), n=sel.length;
+  var cbs=document.querySelectorAll('.user-cb');
+  document.getElementById('user-bulk-bar').classList.toggle('visible',n>0);
+  document.getElementById('user-bulk-info').textContent=n+' selected';
+  var allCb=document.getElementById('ucb-all');
+  allCb.indeterminate=n>0&&n<cbs.length;
+  allCb.checked=n===cbs.length&&cbs.length>0;
+  cbs.forEach(function(cb){
+    var r=document.getElementById('urow-'+cb.value);
+    if(r)r.classList.toggle('selected',cb.checked);
+  });
 }
-function submitDeckAction(){
-  document.getElementById('fd-op').value=pendingDeckOp;
-  document.getElementById('fd-ids').value=pendingDeckIds.join(',');
-  document.getElementById('fd-tab').value=currentTab();
-  document.getElementById('deck-act-form').submit();
+function toggleAllUsers(cb){document.querySelectorAll('.user-cb').forEach(function(c){c.checked=cb.checked});updateUserBulk();}
+function selectAllUsers(){document.querySelectorAll('.user-cb').forEach(function(c){c.checked=true});updateUserBulk();}
+function selectNoUsers(){document.querySelectorAll('.user-cb').forEach(function(c){c.checked=false});updateUserBulk();}
+
+function doUserAction(op,ids){
+  pendingOp=op; pendingIds=ids; pendingTarget='users';
+  if(op==='delete'){showModal('Delete '+(ids.length===1?'this user':ids.length+' users')+'?','This will permanently remove '+(ids.length===1?'this user account':'these '+ids.length+' user accounts')+'. Their pages and decks will NOT be deleted. This cannot be undone.');return;}
+  submitUserAction();
 }
+function bulkUserAction(op){
+  var sel=getUserChecked();
+  if(!sel.length)return;
+  doUserAction(op,sel);
+}
+function confirmUserDelete(ids){doUserAction('delete',ids);}
 
 /* modal */
-function showModal(ids){
-  var n=ids.length;
-  document.getElementById('m-title').textContent='Delete '+(n===1?'this page':n+' pages')+'?';
-  document.getElementById('m-body').textContent='This will permanently remove '+(n===1?'this page':'these '+n+' pages')+'. It cannot be undone.';
+function showModal(title, body){
+  document.getElementById('m-title').textContent=title;
+  document.getElementById('m-body').textContent=body;
   document.getElementById('modal').classList.add('open');
 }
-function closeModal(){document.getElementById('modal').classList.remove('open');pendingDeckOp='';pendingDeckIds=[];}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
 function submitAction(){
-  var dOp=pendingDeckOp, dIds=pendingDeckIds.slice();
   closeModal();
-  if(dOp && dIds.length){
-    document.getElementById('fd-op').value=dOp;
-    document.getElementById('fd-ids').value=dIds.join(',');
-    document.getElementById('deck-act-form').submit();
-    return;
-  }
-  submit();
+  if(pendingTarget==='pages') submitPageAction();
+  else if(pendingTarget==='decks') submitDeckAction();
+  else if(pendingTarget==='users') submitUserAction();
 }
-function currentTab(){return location.hash.replace('#','') || 'pages';}
-function submit(){
+function submitPageAction(){
   document.getElementById('f-op').value=pendingOp;
   document.getElementById('f-ids').value=pendingIds.join(',');
   document.getElementById('f-tab').value=currentTab();
   document.getElementById('act-form').submit();
 }
+function submitDeckAction(){
+  document.getElementById('fd-op').value=pendingOp;
+  document.getElementById('fd-ids').value=pendingIds.join(',');
+  document.getElementById('fd-tab').value=currentTab();
+  document.getElementById('deck-act-form').submit();
+}
+function submitUserAction(){
+  document.getElementById('fu-op').value=pendingOp;
+  document.getElementById('fu-ids').value=pendingIds.join(',');
+  document.getElementById('fu-tab').value=currentTab();
+  document.getElementById('user-act-form').submit();
+}
+function currentTab(){return location.hash.replace('#','') || 'pages';}
 
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 </script>

@@ -28,8 +28,8 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     .sub{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-align:center;margin-bottom:32px;text-transform:uppercase;letter-spacing:.08em;}
     .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:28px;}
     label{font-family:var(--mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;}
-    input[type=password]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.85rem;padding:10px 12px;outline:none;transition:border-color .2s;margin-bottom:16px;}
-    input[type=password]:focus{border-color:var(--border2);}
+    input[type=text],input[type=password]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.85rem;padding:10px 12px;outline:none;transition:border-color .2s;margin-bottom:16px;}
+    input[type=text]:focus,input[type=password]:focus{border-color:var(--border2);}
     .submit{width:100%;font-family:var(--sans);font-weight:700;font-size:.9rem;background:var(--accent);color:#0a1a0a;border:none;border-radius:var(--r);padding:11px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
     .submit:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(127,255,127,.2);}
     .err{background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.3);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:.75rem;color:var(--accent2);margin-bottom:14px;}
@@ -44,8 +44,10 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
   <div class="card">
     {% if error_html %}{{ error_html|safe }}{% endif %}
     <form method="POST" action="/admin/login">
+      <label>username</label>
+      <input type="text" name="username" autofocus placeholder="admin" autocomplete="username"/>
       <label>password</label>
-      <input type="password" name="password" autofocus placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"/>
+      <input type="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password"/>
       <button type="submit" class="submit">enter &#8594;</button>
     </form>
   </div>

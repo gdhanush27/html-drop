@@ -32,9 +32,24 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     .submit:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(127,255,127,.2);}
     .err{background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.3);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:.75rem;color:var(--accent2);margin-bottom:14px;}
     .back{text-align:center;margin-top:18px;font-family:var(--mono);font-size:.7rem;}
-    .back a{color:var(--muted);}
+    .back a{color:var(--accent);}
     .links{text-align:center;margin-top:14px;font-family:var(--mono);font-size:.72rem;}
     .links a{color:var(--accent);}
+    .tos-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:18px;margin-top:2px;}
+    .tos-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;margin-top:2px;}
+    .tos-row label{font-size:.72rem;color:var(--muted);text-transform:none;letter-spacing:0;margin-bottom:0;cursor:pointer;line-height:1.5;}
+    .tos-row label a{color:var(--accent);text-decoration:underline;cursor:pointer;}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;}
+    .modal-overlay.open{display:flex;}
+    .modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:28px;max-width:560px;width:90%;max-height:80vh;display:flex;flex-direction:column;animation:fadeU .25s ease;}
+    .modal h3{font-size:1rem;font-weight:700;margin-bottom:14px;}
+    .modal-body{font-family:var(--mono);font-size:.74rem;color:var(--muted);line-height:1.7;overflow-y:auto;flex:1;padding-right:6px;}
+    .modal-body h4{color:var(--text);font-family:var(--sans);font-size:.85rem;margin:16px 0 6px;}
+    .modal-body h4:first-child{margin-top:0;}
+    .modal-body ul{margin:6px 0 6px 16px;}
+    .modal-acts{display:flex;justify-content:flex-end;margin-top:18px;}
+    .modal-acts button{font-family:var(--sans);font-weight:700;font-size:.82rem;background:var(--accent);color:#0a1a0a;border:none;border-radius:var(--r);padding:9px 20px;cursor:pointer;transition:transform .15s;}
+    .modal-acts button:hover{transform:translateY(-1px);}
   </style>
 </head>
 <body>
@@ -50,10 +65,47 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
       <input type="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required minlength="6"/>
       <label>confirm password</label>
       <input type="password" name="confirm" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required minlength="6"/>
+      <div class="tos-row">
+        <input type="checkbox" id="tos" name="tos" required/>
+        <label for="tos">I agree to the <a onclick="document.getElementById('tos-modal').classList.add('open');return false;" href="#">terms &amp; conditions</a></label>
+      </div>
       <button type="submit" class="submit">register &#8594;</button>
     </form>
   </div>
   <div class="links">already have an account? <a href="/login">login</a></div>
   <div class="back"><a href="/">&#8592; back to htmldrop</a></div>
+</div>
+<div class="modal-overlay" id="tos-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>Terms &amp; Conditions</h3>
+    <div class="modal-body">
+      <h4>1. Acceptance</h4>
+      <p>By creating an account on htmldrop you agree to these terms. If you do not agree, do not register.</p>
+      <h4>2. Your Account</h4>
+      <ul>
+        <li>You must provide a valid email and keep your password secure.</li>
+        <li>You are responsible for all activity under your account.</li>
+      </ul>
+      <h4>3. Content Rules</h4>
+      <ul>
+        <li>Do not upload malicious code, malware, or phishing pages.</li>
+        <li>Do not host content that is illegal, hateful, or infringes copyrights.</li>
+        <li>Administrators may remove any content or block accounts at their discretion.</li>
+      </ul>
+      <h4>4. Service</h4>
+      <ul>
+        <li>htmldrop is provided &ldquo;as is&rdquo; with no warranty.</li>
+        <li>The service may be modified, suspended, or terminated at any time.</li>
+        <li>We are not liable for data loss or downtime.</li>
+      </ul>
+      <h4>5. Privacy</h4>
+      <p>We store your email and hashed password. Pages you upload are publicly accessible via their unique ID. Hit counts and metadata are collected for administrative purposes.</p>
+      <h4>6. Changes</h4>
+      <p>These terms may be updated. Continued use after changes constitutes acceptance.</p>
+    </div>
+    <div class="modal-acts">
+      <button onclick="document.getElementById('tos-modal').classList.remove('open')">got it</button>
+    </div>
+  </div>
 </div>
 </body></html>
