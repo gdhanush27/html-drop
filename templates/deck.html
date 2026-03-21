@@ -72,6 +72,10 @@ textarea.slide-ta::placeholder{color:var(--muted2);}
 .hint{font-family:var(--mono);font-size:.68rem;color:var(--muted);}
 button[type=submit]{font-family:var(--sans);font-weight:600;font-size:.86rem;background:var(--accent);color:#0a1a0a;border:none;border-radius:var(--r);padding:10px 26px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
 button[type=submit]:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(127,255,127,.22);}
+button[type=submit].loading,#zai-btn.loading{pointer-events:none;opacity:.7;transform:none;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,26,10,.3);border-top-color:#0a1a0a;border-radius:50%;animation:spin .5s linear infinite;vertical-align:middle;margin-right:6px;}
+.spinner-light{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .5s linear infinite;vertical-align:middle;margin-right:6px;}
 .error{background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.3);border-radius:var(--r);padding:11px 15px;margin-bottom:20px;font-family:var(--mono);font-size:.78rem;color:var(--accent2);}
 .result{background:var(--accent-dim);border:1px solid rgba(127,255,127,.2);border-radius:var(--r);padding:15px 18px;margin-bottom:26px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
 .rlabel{font-family:var(--mono);font-size:.68rem;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px;}
@@ -278,8 +282,9 @@ function importZai(e) {
   var btn = document.getElementById('zai-btn');
   var status = document.getElementById('zai-status');
   btn.disabled = true;
-  btn.textContent = 'fetching...';
-  status.innerHTML = '<span style="font-family:var(--mono);font-size:.78rem;color:var(--muted);">fetching presentation from z.ai...</span>';
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span>fetching...';
+  status.innerHTML = '<span style="font-family:var(--mono);font-size:.78rem;color:var(--muted);"><span class="spinner-light"></span> fetching presentation from z.ai...</span>';
 
   fetch(apiUrl)
   .then(function(r) {
@@ -290,8 +295,8 @@ function importZai(e) {
     var pages = pres.pages;
     if (!pages || !pages.length) throw new Error('No slides found in z.ai response.');
     var title = (pres.title || 'Untitled Deck').trim();
-    btn.textContent = 'saving...';
-    status.innerHTML = '<span style="font-family:var(--mono);font-size:.78rem;color:var(--muted);">saving ' + pages.length + ' slides...</span>';
+    btn.innerHTML = '<span class="spinner"></span>saving...';
+    status.innerHTML = '<span style="font-family:var(--mono);font-size:.78rem;color:var(--muted);"><span class="spinner-light"></span> saving ' + pages.length + ' slides...</span>';
     return fetch('/deck/import-zai', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -301,6 +306,7 @@ function importZai(e) {
   .then(function(r) { return r.json(); })
   .then(function(data) {
     btn.disabled = false;
+    btn.classList.remove('loading');
     btn.textContent = 'import deck \u2192';
     if (data.error) {
       status.innerHTML = '<div class="error">\u26a0 ' + data.error + '</div>';
@@ -310,10 +316,13 @@ function importZai(e) {
   })
   .catch(function(err) {
     btn.disabled = false;
+    btn.classList.remove('loading');
     btn.textContent = 'import deck \u2192';
     status.innerHTML = '<div class="error">\u26a0 ' + err.message + '</div>';
   });
   return false;
 }
+// loading state for regular form submissions
+document.querySelectorAll('form:not(#zai-form)').forEach(function(f){f.addEventListener('submit',function(){var b=f.querySelector('button[type=submit]');if(b&&!b.classList.contains('loading')){b.classList.add('loading');b.innerHTML='<span class="spinner"></span>publishing...';}});});
 </script>
 </body></html>

@@ -32,6 +32,9 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     input[type=text]:focus,input[type=password]:focus{border-color:var(--border2);}
     .submit{width:100%;font-family:var(--sans);font-weight:700;font-size:.9rem;background:var(--accent);color:#0a1a0a;border:none;border-radius:var(--r);padding:11px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
     .submit:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(127,255,127,.2);}
+    .submit.loading{pointer-events:none;opacity:.7;transform:none;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,26,10,.3);border-top-color:#0a1a0a;border-radius:50%;animation:spin .5s linear infinite;vertical-align:middle;margin-right:6px;}
     .err{background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.3);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:.75rem;color:var(--accent2);margin-bottom:14px;}
     .back{text-align:center;margin-top:18px;font-family:var(--mono);font-size:.7rem;}
     .back a{color:var(--muted);}
@@ -56,4 +59,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     <a href="https://github.com/gdhanush27/html-drop" style="color:var(--muted);">github</a> &middot; <a href="https://github.com/gdhanush27" style="color:var(--muted);">@gdhanush27</a>
   </div>
 </div>
+<script>
+document.querySelectorAll('form').forEach(function(f){f.addEventListener('submit',function(){var b=f.querySelector('button[type=submit],.submit');if(b&&!b.classList.contains('loading')){b.classList.add('loading');b.innerHTML='<span class="spinner"></span>loading...';}});});
+</script>
 </body></html>

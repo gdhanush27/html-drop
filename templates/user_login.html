@@ -30,11 +30,18 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     input[type=email]:focus,input[type=password]:focus{border-color:var(--border2);}
     .submit{width:100%;font-family:var(--sans);font-weight:700;font-size:.9rem;background:var(--accent);color:#0a1a0a;border:none;border-radius:var(--r);padding:11px;cursor:pointer;transition:transform .15s,box-shadow .15s;}
     .submit:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(127,255,127,.2);}
+    .submit.loading{pointer-events:none;opacity:.7;transform:none;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(10,26,10,.3);border-top-color:#0a1a0a;border-radius:50%;animation:spin .5s linear infinite;vertical-align:middle;margin-right:6px;}
     .err{background:rgba(255,95,95,.1);border:1px solid rgba(255,95,95,.3);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:.75rem;color:var(--accent2);margin-bottom:14px;}
+    .ok-msg{background:var(--accent-dim);border:1px solid rgba(127,255,127,.3);border-radius:var(--r);padding:9px 12px;font-family:var(--mono);font-size:.75rem;color:var(--accent);margin-bottom:14px;}
     .back{text-align:center;margin-top:18px;font-family:var(--mono);font-size:.7rem;}
     .back a{color:var(--accent);}
     .links{text-align:center;margin-top:14px;font-family:var(--mono);font-size:.72rem;}
     .links a{color:var(--accent);}
+    .forgot{text-align:right;margin:-10px 0 16px;font-family:var(--mono);font-size:.66rem;}
+    .forgot a{color:var(--muted);transition:color .15s;}
+    .forgot a:hover{color:var(--accent);}
   </style>
 </head>
 <body>
@@ -42,16 +49,31 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
   <a href="/" class="logo" style="text-decoration:none;color:inherit;display:block">html<span>drop</span></a>
   <div class="sub">sign in to your account</div>
   <div class="card">
+    {% if forgot %}
+    {% if forgot_error %}{{ forgot_error|safe }}{% endif %}
+    {% if forgot_success %}{{ forgot_success|safe }}{% endif %}
+    <form method="POST" action="/forgot-password">
+      <label>email</label>
+      <input type="email" name="email" autofocus placeholder="you@example.com" required/>
+      <button type="submit" class="submit">send reset link &#8594;</button>
+    </form>
+    <div class="forgot" style="text-align:center;margin-top:14px;"><a href="/login">&larr; back to login</a></div>
+    {% else %}
     {% if error_html %}{{ error_html|safe }}{% endif %}
     <form method="POST" action="/login">
       <label>email</label>
       <input type="email" name="email" autofocus placeholder="you@example.com" required/>
       <label>password</label>
       <input type="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required/>
+      <div class="forgot"><a href="/forgot-password">forgot password?</a></div>
       <button type="submit" class="submit">login &#8594;</button>
     </form>
+    {% endif %}
   </div>
   <div class="links">don't have an account? <a href="/register">register</a></div>
   <div class="back"><a href="/">&#8592; back to htmldrop</a></div>
 </div>
+<script>
+document.querySelectorAll('form').forEach(function(f){f.addEventListener('submit',function(){var b=f.querySelector('button[type=submit],.submit');if(b&&!b.classList.contains('loading')){b.classList.add('loading');b.innerHTML='<span class="spinner"></span>loading...';}});});
+</script>
 </body></html>

@@ -16,6 +16,18 @@ A single-file Flask app for sharing HTML pages and slideshow decks. Paste or upl
   - Profile page listing your pages and decks with delete
   - Owner tracking — pages/decks are associated with the creating user
   - Activity logging — every action (login, share, delete, etc.) is recorded in `users.json`
+- **Email verification** — users must verify their email before uploading
+  - Verification link sent on registration and on demand from the profile page
+  - Unverified users are blocked from creating pages and decks
+- **Email notifications** — transactional emails for account events
+  - Welcome email on account creation
+  - Password change via email link (profile → email → set new password)
+  - Email change via password verification (notification sent to old & new address)
+  - Account blocked / unblocked / deleted by admin
+  - Page or deck pinned / unpinned by admin
+  - Account deletion via email confirmation link
+  - Synchronous delivery for critical flows with "Please try again later" on failure
+  - Fire-and-forget for notifications (welcome, blocked, etc.)
 - **Admin dashboard** — password-protected panel to manage all content (`/admin`)
   - View/block/unblock/delete pages and decks
   - Pin a page or deck as the homepage hero
@@ -40,8 +52,16 @@ A single-file Flask app for sharing HTML pages and slideshow decks. Paste or upl
 | `/d/<id>` | View a slideshow deck |
 | `/register` | Create a new account |
 | `/login` | User login |
+| `/forgot-password` | Request a password reset link |
 | `/logout` | POST — log out |
-| `/profile` | View your pages and decks |
+| `/profile` | View your pages, decks, and account settings |
+| `/profile/resend-verification` | POST — resend email verification link |
+| `/profile/request-change-password` | POST — send password change link |
+| `/profile/change-email` | POST — change email (requires password) |
+| `/profile/request-delete-account` | POST — send account deletion link |
+| `/verify-email` | Verify email via token link |
+| `/confirm-change-password` | Set new password via token link |
+| `/confirm-delete-account` | Confirm account deletion via token link |
 | `/admin` | Admin dashboard (admin login required) |
 
 ## Setup
@@ -78,6 +98,8 @@ Create a `.env` file in the project root (loaded automatically) or set environme
 |---|---|---|
 | `SECRET_KEY` | `dev-secret-change-me` | Flask session secret key |
 | `ADMIN_PASSWORD` | `password123` | Password for the admin dashboard |
+| `SMTP_EMAIL` | *(required)* | Gmail address for sending emails |
+| `SMTP_APP_PASSWORD` | *(required)* | Gmail app password for SMTP authentication |
 
 The upload size limit is 10 MB (`MAX_CONTENT_LENGTH`).
 

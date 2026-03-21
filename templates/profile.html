@@ -107,6 +107,9 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     .settings-btn-danger:hover{background:rgba(255,127,127,.15);}
     .danger-zone{border-color:rgba(255,127,127,.2);}
     .settings-help{font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-top:8px;line-height:1.5;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:spin .5s linear infinite;vertical-align:middle;margin-right:6px;}
+    .btn-loading,.vb-btn.loading,.settings-btn.loading,.logout-btn.loading,.del-btn.loading{pointer-events:none;opacity:.7;}
     @media(max-width:600px){.stats{grid-template-columns:1fr;} .settings-row{flex-direction:column;} .settings-row .field{min-width:0;width:100%;} .settings-btn{width:100%;text-align:center;}}
   </style>
 </head>
@@ -284,6 +287,9 @@ function closeModal() {
   pendingId = '';
 }
 function submitDelete() {
+  var btn = document.getElementById('m-confirm');
+  btn.classList.add('btn-loading');
+  btn.innerHTML = '<span class="spinner"></span>deleting...';
   if (pendingType === 'page') {
     document.getElementById('del-page-id').value = pendingId;
     document.getElementById('del-page-form').submit();
@@ -291,10 +297,20 @@ function submitDelete() {
     document.getElementById('del-deck-id').value = pendingId;
     document.getElementById('del-deck-form').submit();
   }
-  closeModal();
 }
 document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
+});
+// loading state for all form buttons
+document.querySelectorAll('form').forEach(function(f){
+  f.addEventListener('submit', function(){
+    var b = f.querySelector('button[type=submit],.settings-btn,.vb-btn');
+    if(b && !b.classList.contains('loading')){
+      b.classList.add('loading');
+      var orig = b.textContent;
+      b.innerHTML = '<span class="spinner"></span>loading...';
+    }
+  });
 });
 </script>
 </body></html>

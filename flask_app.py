@@ -166,6 +166,13 @@ def validate_token(token, expected_type):
     del _tokens[token]
     return data
 
+def invalidate_tokens_for(email, token_type):
+    """Remove all tokens of a given type for an email."""
+    to_delete = [k for k, v in _tokens.items()
+                 if v["email"] == email and v["type"] == token_type]
+    for k in to_delete:
+        del _tokens[k]
+
 def send_verification_email_with_url(email, site_url):
     """Send email verification with the correct site URL. Returns True on success."""
     token = generate_token("verify_email", email)
@@ -637,6 +644,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
             is_pinned = pid in pinned_pages
             safe_pin_name = pinned_name.replace('&','&amp;').replace('"','&quot;').replace('<','&lt;').replace('>','&gt;') if is_pinned else ''
             pinned_badge = f'<span class="bdg bdg-pin" title="Pinned to homepage">&#9733; pinned</span>' if is_pinned else ''
+            pid_style = ' style="color:var(--warn)"' if is_pinned else ''
             block_btn = (
                 f'<button class="act ok" onclick="doAction(\'unblock\',[\'{pid}\'])">unblock</button>'
                 if blocked else
@@ -665,13 +673,13 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
                 f' data-status="{"blocked" if blocked else "active"}" data-created="{created}"'
                 f' data-owner="{safe_owner}">'
                 f'<td><input type="checkbox" class="cb row-cb" value="{pid}" onchange="updateBulk()"/></td>'
-                f'<td><a class="pid" href="/p/{pid}" target="_blank">{pid}</a></td>'
+                f'<td><a class="pid" href="/p/{pid}" target="_blank"{pid_style}>{pid}</a></td>'
                 f'<td class="ts owner-cell" style="color:var(--info);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{safe_owner}">{safe_owner or "<span style=color:var(--muted2)>anon</span>"}</td>'
                 f'<td class="ts">{fmt_date(created)}</td>'
                 f'<td class="sz">{fmt_size(size)}</td>'
                 f'<td><div class="hits-bar"><span class="hits-val">{hits:,}</span>'
                 f'<div class="hits-track"><div class="hits-fill" style="width:{pct}%"></div></div></div></td>'
-                f'<td>{badge} {pinned_badge}</td>'
+                f'<td>{badge}</td>'
                 f'<td>'
                 f'<div class="acts-desktop">'
                 f'<a class="act" href="/p/{pid}/source">source</a>'
@@ -716,6 +724,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
             is_deck_pinned = did in pinned_decks
             safe_dpin_name = pinned_name.replace('&','&amp;').replace('"','&quot;').replace('<','&lt;').replace('>','&gt;') if is_deck_pinned else ''
             dpinned_badge = f'<span class="bdg bdg-pin" title="Pinned to homepage">&#9733; pinned</span>' if is_deck_pinned else ''
+            did_style = ' style="color:var(--warn)"' if is_deck_pinned else ''
             dblock_btn = (
                 f'<button class="act ok" onclick="doDeckAction(\'unblock\',[\'{did}\'])">unblock</button>'
                 if dblocked else
@@ -745,14 +754,14 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
                 f' data-slides="{dslides}" data-status="{"blocked" if dblocked else "active"}"'
                 f' data-created="{dcreated}" data-owner="{safe_downer}">'
                 f'<td><input type="checkbox" class="cb deck-cb" value="{did}" onchange="updateDeckBulk()"/></td>'
-                f'<td><a class="pid" href="/d/{did}" target="_blank">{did}</a></td>'
+                f'<td><a class="pid" href="/d/{did}" target="_blank"{did_style}>{did}</a></td>'
                 f'<td style="color:var(--text);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{dtitle}</td>'
                 f'<td class="ts owner-cell" style="color:var(--info);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{safe_downer}">{safe_downer or "<span style=color:var(--muted2)>anon</span>"}</td>'
                 f'<td class="ts">{fmt_date(dcreated)}</td>'
                 f'<td style="color:var(--info)">{dslides}</td>'
                 f'<td><div class="hits-bar"><span class="hits-val">{dhits:,}</span>'
                 f'<div class="hits-track"><div class="hits-fill" style="width:{dpct}%"></div></div></div></td>'
-                f'<td>{dbadge} {dpinned_badge}</td>'
+                f'<td>{dbadge}</td>'
                 f'<td>'
                 f'<div class="acts-desktop">'
                 f'{dpin_btn}'
@@ -1206,7 +1215,28 @@ def user_login():
     return render_template("user_login.html", active_nav="", error_html="")
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("3 per minute")
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        if not email:
+            return render_template("user_login.html", active_nav="", error_html="",
+                                   forgot=True, forgot_error='<div class="err">&#9888; please enter your email</div>')
+        users = load_users()
+        if email not in users:
+            return render_template("user_login.html", active_nav="", error_html="",
+                                   forgot=True, forgot_error='<div class="err">&#9888; no account found with this email</div>')
+        if send_change_password_email(email, request.host_url):
+            return render_template("user_login.html", active_nav="", error_html="",
+                                   forgot=True, forgot_success='<div class="ok-msg">&#10003; Password reset link sent! Check your inbox.</div>')
+        return render_template("user_login.html", active_nav="", error_html="",
+                               forgot=True, forgot_error='<div class="err">&#9888; failed to send email. Please try again later.</div>')
+    return render_template("user_login.html", active_nav="", error_html="", forgot=True)
+
+
 @app.route("/logout", methods=["POST"])
+@limiter.limit("10 per minute")
 def user_logout():
     session.pop("user_email", None)
     return redirect(url_for("index"))
@@ -1246,6 +1276,7 @@ def profile():
 
 @app.route("/profile/delete_page", methods=["POST"])
 @login_required
+@limiter.limit("10 per minute")
 def profile_delete_page():
     email = get_current_user()
     pid = re.sub(r"[^a-zA-Z0-9]", "", request.form.get("id", ""))[:20]
@@ -1263,6 +1294,7 @@ def profile_delete_page():
 
 @app.route("/profile/delete_deck", methods=["POST"])
 @login_required
+@limiter.limit("10 per minute")
 def profile_delete_deck():
     email = get_current_user()
     did = re.sub(r"[^a-zA-Z0-9]", "", request.form.get("id", ""))[:20]
@@ -1283,6 +1315,7 @@ def profile_delete_deck():
 # ---------------------------------------------------------------------------
 
 @app.route("/verify-email")
+@limiter.limit("10 per minute")
 def verify_email():
     token = request.args.get("token", "")
     data = validate_token(token, "verify_email")
@@ -1336,6 +1369,7 @@ def request_change_password():
 
 
 @app.route("/confirm-change-password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def confirm_change_password():
     if request.method == "GET":
         token = request.args.get("token", "")
@@ -1369,6 +1403,7 @@ def confirm_change_password():
     if email in users:
         users[email]["password_hash"] = generate_password_hash(new_password)
         save_users(users)
+        invalidate_tokens_for(email, "change_password")
         send_password_changed_email(email)
     if session.get("user_email") == email:
         session["profile_flash"] = "Password changed successfully!"
@@ -1455,6 +1490,7 @@ def request_delete_account():
 
 
 @app.route("/confirm-delete-account")
+@limiter.limit("5 per minute")
 def confirm_delete_account():
     token = request.args.get("token", "")
     data = validate_token(token, "delete_account")
