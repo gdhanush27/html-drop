@@ -98,6 +98,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     </div>
     <div id="panel-paste" class="panel active">
       <form method="POST" action="/share" enctype="multipart/form-data">
+        <input type="text" name="title" placeholder="Page title (optional)" maxlength="120" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.8rem;padding:10px 14px;outline:none;margin-bottom:10px;transition:border-color .2s;" onfocus="this.style.borderColor='var(--border2)'" onblur="this.style.borderColor='var(--border)'"/>
         <textarea name="html" spellcheck="false" placeholder="<!DOCTYPE html>&#10;<html>&#10;  <body><h1>Hello!</h1></body>&#10;</html>">{{ prefill }}</textarea>
         <div class="row">
           <span class="hint">any self-contained html · max 2 MB</span>
@@ -107,6 +108,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     </div>
     <div id="panel-upload" class="panel">
       <form method="POST" action="/share" enctype="multipart/form-data">
+        <input type="text" name="title" placeholder="Page title (optional)" maxlength="120" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.8rem;padding:10px 14px;outline:none;margin-bottom:10px;transition:border-color .2s;" onfocus="this.style.borderColor='var(--border2)'" onblur="this.style.borderColor='var(--border)'"/>
         <div class="dropzone" id="dz">
           <input type="file" name="file" accept=".html,.htm" onchange="fileChosen(this)"/>
           <span class="dz-icon">&#8679;</span>

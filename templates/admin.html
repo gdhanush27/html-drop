@@ -321,7 +321,7 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
       <div class="toolbar">
         <div class="search-wrap">
           <span class="search-icon">&#128269;</span>
-          <input id="pq-input" type="text" placeholder="search by id or email&#8230;" value="" oninput="filterPages()"/>
+          <input id="pq-input" type="text" placeholder="search by id, title or email&#8230;" value="" oninput="filterPages()"/>
         </div>
         <select id="ps-select" onchange="filterPages()">
           <option value="all">all pages</option>
@@ -353,6 +353,7 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
             <tr>
               <th style="width:36px"><input type="checkbox" class="cb" id="cb-all" onchange="toggleAll(this)"/></th>
               <th>page id</th>
+              <th>title</th>
               <th>owner</th>
               <th class="sortable" onclick="sortPages('created')">created</th>
               <th class="sortable" onclick="sortPages('size')">size</th>
@@ -589,9 +590,10 @@ function filterPages() {
   rows.forEach(function(r) {
     var id = r.dataset.id.toLowerCase();
     var owner = (r.dataset.owner || '').toLowerCase();
+    var title = (r.dataset.title || '').toLowerCase();
     var st = r.dataset.status;
     var show = true;
-    if (q && id.indexOf(q) === -1 && owner.indexOf(q) === -1) show = false;
+    if (q && id.indexOf(q) === -1 && owner.indexOf(q) === -1 && title.indexOf(q) === -1) show = false;
     if (status !== 'all' && st !== status) show = false;
     r.style.display = show ? '' : 'none';
     if (show) visible++;

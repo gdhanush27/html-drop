@@ -164,6 +164,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
       {% for p in pages %}
       <div class="item-card">
         <div class="item-info">
+          <div class="item-title">{{ p.get('title', 'Untitled') }}</div>
           <div class="item-id"><a href="/p/{{ p.id }}" target="_blank">{{ p.id }}</a></div>
           <div class="item-meta">
             <span>{{ p.get('hits', 0) }} hits</span>

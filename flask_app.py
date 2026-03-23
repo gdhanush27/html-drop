@@ -492,7 +492,7 @@ def render_home():
         if p_type == "page":
             info = load_meta().get(p_id)
             if info and not info.get("blocked") and os.path.exists(os.path.join(PAGES_DIR, f"{p_id}.html")):
-                safe_name = (p_name or p_id).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+                safe_name = (p_name or info.get("title") or p_id).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
                 pinned_ctx = {"type": "page", "name": safe_name, "url": f"/p/{p_id}", "path": f"/p/{p_id}"}
         elif p_type == "deck":
             info = load_decks_meta().get(p_id)
@@ -515,6 +515,12 @@ def _is_frozen(mode):
     if mode == "anon" and not get_current_user():
         return True
     return False
+
+def _extract_html_title(html_content):
+    """Extract the content of the <title> tag from HTML, or return empty string."""
+    m = re.search(r'<title[^>]*>([^<]+)</title>', html_content, re.IGNORECASE)
+    return m.group(1).strip() if m else ""
+
 
 def render_index(error="", page_id="", prefill="", host=""):
     error_html = ""
@@ -626,7 +632,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
 
     # build page rows HTML
     if not pages:
-        rows_html = '<tr class="page-empty-row"><td colspan="8"><div class="empty"><span class="empty-icon">&#128237;</span>No pages yet. <a href="/">Share your first page &rarr;</a></div></td></tr>'
+        rows_html = '<tr class="page-empty-row"><td colspan="9"><div class="empty"><span class="empty-icon">&#128237;</span>No pages yet. <a href="/">Share your first page &rarr;</a></div></td></tr>'
     else:
         rows = []
         for p in pages:
@@ -636,6 +642,8 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
             blocked = p.get("blocked", False)
             created = p.get("created", "")
             owner   = p.get("owner", "")
+            title   = p.get("title", "Untitled")
+            safe_title = title.replace('&','&amp;').replace('"','&quot;').replace('<','&lt;').replace('>','&gt;') if title else 'Untitled'
             safe_owner = owner.replace('&','&amp;').replace('"','&quot;').replace('<','&lt;').replace('>','&gt;') if owner else ''
             pct     = int(hits / max_hits * 100)
             badge   = (f'<span class="bdg bdg-off"><span class="bdg-dot"></span>blocked</span>'
@@ -671,9 +679,10 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
                 f'<tr id="row-{pid}" class="page-row {"is-blocked" if blocked else ""}"'
                 f' data-id="{pid}" data-hits="{hits}" data-size="{size}"'
                 f' data-status="{"blocked" if blocked else "active"}" data-created="{created}"'
-                f' data-owner="{safe_owner}">'
+                f' data-owner="{safe_owner}" data-title="{safe_title}">'
                 f'<td><input type="checkbox" class="cb row-cb" value="{pid}" onchange="updateBulk()"/></td>'
                 f'<td><a class="pid" href="/p/{pid}" target="_blank"{pid_style}>{pid}</a></td>'
+                f'<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{safe_title}">{safe_title}</td>'
                 f'<td class="ts owner-cell" style="color:var(--info);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{safe_owner}">{safe_owner or "<span style=color:var(--muted2)>anon</span>"}</td>'
                 f'<td class="ts">{fmt_date(created)}</td>'
                 f'<td class="sz">{fmt_size(size)}</td>'
@@ -927,12 +936,17 @@ def share():
     if not content:
         return render_index(error="Please paste some HTML or upload a file.")
 
+    # resolve page title: form field > <title> tag > "Untitled"
+    title = request.form.get("title", "").strip()[:120]
+    if not title:
+        title = _extract_html_title(content)[:120] or "Untitled"
+
     page_id = uuid.uuid4().hex[:10]
     filepath = os.path.join(PAGES_DIR, f"{page_id}.html")
     with open(filepath, "w", encoding="utf-8") as fh:
         fh.write(content)
     owner = get_current_user() or ""
-    upsert_meta(page_id, size=len(content.encode("utf-8")), owner=owner)
+    upsert_meta(page_id, size=len(content.encode("utf-8")), owner=owner, title=title)
     if owner:
         update_user(owner, last_active=datetime.now(timezone.utc).isoformat(), last_action="share_page")
     return render_index(page_id=page_id, host=request.host_url)
