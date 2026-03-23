@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="icon" type="image/png" href="/favicon.png"/>
+  <title>{{ display_name }} &#8212; htmldrop</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0c0e;--surface:#141418;--surface2:#1c1c22;--border:#252530;
+  --border2:#2e2e3a;--text:#e8e8f0;--muted:#6b6b80;--muted2:#4a4a5a;
+  --accent:#7fff7f;--accent-dim:#1a3d1a;--accent2:#ff7f7f;--accent2-dim:#3d1a1a;
+  --warn:#ffd47f;--warn-dim:#3d2e0a;--info:#7fcfff;--info-dim:#0a2433;
+  --r:6px;--mono:'JetBrains Mono',monospace;--sans:'Syne',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.35;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");}
+a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
+@keyframes fadeD{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeU{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .navbar{position:sticky;top:0;z-index:100;background:rgba(12,12,14,.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border);}
+.nav-inner{max-width:1000px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{font-size:1.3rem;font-weight:800;letter-spacing:-.04em;color:var(--text);text-decoration:none !important;}
+.nav-logo span{color:var(--accent);}
+.nav-links{display:flex;gap:4px;align-items:center;}
+.nav-item{font-family:var(--mono);font-size:.76rem;color:var(--muted);padding:7px 14px;border-radius:var(--r);transition:color .15s,background .15s;text-decoration:none !important;}
+.nav-item:hover{color:var(--text);background:var(--surface2);}
+.nav-item.active{color:var(--accent);background:var(--accent-dim);}
+.nav-toggle{display:none;background:none;border:1px solid var(--border);border-radius:var(--r);padding:8px 9px;cursor:pointer;flex-direction:column;gap:4px;align-items:center;justify-content:center;}
+.nav-toggle span{display:block;width:18px;height:2px;background:var(--text);border-radius:1px;transition:transform .25s,opacity .25s;}
+.nav-toggle.open span:nth-child(1){transform:rotate(45deg) translate(4px,4px);}
+.nav-toggle.open span:nth-child(2){opacity:0;}
+.nav-toggle.open span:nth-child(3){transform:rotate(-45deg) translate(4px,-4px);}
+@media(max-width:640px){
+  .nav-toggle{display:flex;}
+  .nav-links{display:none;position:absolute;top:56px;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);flex-direction:column;padding:8px 16px;gap:2px;z-index:99;}
+  .nav-links.open{display:flex;animation:fadeD .2s ease both;}
+  .nav-item{padding:12px 16px;width:100%;}
+  .nav-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:98;cursor:pointer;}
+  .nav-backdrop.open{display:block;animation:fadeIn .2s ease both;}
+}
+    .layout{min-height:100vh;display:flex;flex-direction:column;max-width:900px;margin:0 auto;padding:0 24px;}
+    main{flex:1;padding:36px 0;animation:fadeU .4s ease .1s both;}
+    .profile-header{display:flex;align-items:center;gap:14px;margin-bottom:28px;}
+    .profile-avatar{width:56px;height:56px;border-radius:50%;background:var(--accent-dim);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:var(--accent);}
+    .profile-name{font-size:1.4rem;font-weight:800;letter-spacing:-.03em;}
+    .profile-label{font-family:var(--mono);font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px;}
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:28px;}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;}
+    .stat-label{font-family:var(--mono);font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;}
+    .stat-value{font-size:1.7rem;font-weight:800;letter-spacing:-.03em;color:var(--accent);}
+    .section-head{font-family:var(--mono);font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:28px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+    .item-list{display:flex;flex-direction:column;gap:10px;margin-bottom:28px;}
+    .item-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;transition:border-color .2s;}
+    .item-card:hover{border-color:var(--border2);}
+    .item-info{flex:1;min-width:0;}
+    .item-id{font-family:var(--mono);font-size:.82rem;color:var(--accent);word-break:break-all;}
+    .item-id a{color:var(--accent);}
+    .item-meta{font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap;}
+    .item-title{font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px;}
+    .empty{padding:40px 24px;text-align:center;font-family:var(--mono);color:var(--muted);font-size:.82rem;line-height:1.8;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);}
+    .empty-icon{display:flex;justify-content:center;margin-bottom:10px;opacity:.4;}
+    footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono);font-size:.66rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+    @media(max-width:600px){.stats{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+{% include '_navbar.html' %}
+<div class="layout">
+  <main>
+    <div class="profile-header">
+      <div class="profile-avatar">{{ display_name[0]|upper }}</div>
+      <div>
+        <div class="profile-name">{{ display_name }}</div>
+        <div class="profile-label">public profile</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">pages</div><div class="stat-value">{{ pages|length }}</div></div>
+      <div class="stat-card"><div class="stat-label">decks</div><div class="stat-value">{{ decks|length }}</div></div>
+    </div>
+
+    <div class="section-head">
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> pages</span>
+    </div>
+    {% if pages %}
+    <div class="item-list">
+      {% for p in pages %}
+      <div class="item-card">
+        <div class="item-info">
+          <div class="item-title">{{ p.get('title', 'Untitled') }}</div>
+          <div class="item-id"><a href="/p/{{ p.id }}" target="_blank">{{ p.id }}</a></div>
+          <div class="item-meta">
+            <span>{{ p.get('hits', 0) }} hits</span>
+            <span>{{ p.get('created', '')[:16] }}</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty"><span class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span>No pages published yet.</div>
+    {% endif %}
+
+    <div class="section-head" style="margin-top:32px;">
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> decks</span>
+    </div>
+    {% if decks %}
+    <div class="item-list">
+      {% for d in decks %}
+      <div class="item-card">
+        <div class="item-info">
+          <div class="item-title">{{ d.get('title', 'Untitled') }}</div>
+          <div class="item-id"><a href="/d/{{ d.id }}" target="_blank">{{ d.id }}</a></div>
+          <div class="item-meta">
+            <span>{{ d.get('slide_count', 0) }} slides</span>
+            <span>{{ d.get('hits', 0) }} hits</span>
+            <span>{{ d.get('created', '')[:16] }}</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty"><span class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>No decks published yet.</div>
+    {% endif %}
+  </main>
+  <footer>
+    <span>htmldrop &middot; <a href="https://github.com/gdhanush27/html-drop">github</a> &middot; <a href="https://github.com/gdhanush27">@gdhanush27</a></span>
+  </footer>
+</div>
+</body></html>

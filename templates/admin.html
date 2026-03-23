@@ -57,7 +57,7 @@ main{flex:1;padding:26px 0;animation:fadeU .4s ease .1s both;}
 .search-wrap input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.8rem;padding:8px 12px 8px 34px;outline:none;transition:border-color .2s;}
 .search-wrap input:focus{border-color:var(--border2);}
 .search-wrap input::placeholder{color:var(--muted);}
-.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.8rem;pointer-events:none;}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.8rem;pointer-events:none;display:flex;align-items:center;}
 select{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.78rem;padding:8px 10px;outline:none;cursor:pointer;transition:border-color .2s;}
 select:focus{border-color:var(--border2);}
 .result-count{font-family:var(--mono);font-size:.68rem;color:var(--muted);white-space:nowrap;margin-left:auto;}
@@ -123,7 +123,7 @@ tr.selected td:first-child{border-left:2px solid var(--accent);}
 .act.info:hover{background:var(--info-dim);}
 
 .empty{padding:60px 24px;text-align:center;font-family:var(--mono);color:var(--muted);font-size:.82rem;line-height:1.8;}
-.empty-icon{font-size:2.4rem;display:block;margin-bottom:12px;opacity:.4;}
+.empty-icon{display:flex;justify-content:center;margin-bottom:12px;opacity:.4;}
 .flash{border-radius:var(--r);padding:11px 15px;margin-bottom:18px;font-family:var(--mono);font-size:.78rem;}
 .flash-ok{background:var(--accent-dim);border:1px solid rgba(127,255,127,.3);color:var(--accent);}
 .flash-err{background:var(--accent2-dim);border:1px solid rgba(255,127,127,.3);color:var(--accent2);}
@@ -138,6 +138,18 @@ tr.selected td:first-child{border-left:2px solid var(--accent);}
 .section-head{font-family:var(--mono);font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:28px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 
 footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono);font-size:.66rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+
+/* primary section nav */
+.section-nav{display:flex;gap:6px;margin-bottom:24px;border-bottom:2px solid var(--border);padding-bottom:0;flex-wrap:wrap;}
+.section-nav-btn{font-family:var(--mono);font-size:.78rem;padding:10px 20px;cursor:pointer;color:var(--muted);border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:7px;white-space:nowrap;}
+.section-nav-btn:hover{color:var(--text);}
+.section-nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.admin-section{display:none;}
+.admin-section.active{display:block;animation:fadeIn .2s ease;}
+@media(max-width:600px){
+  .section-nav{gap:0;}
+  .section-nav-btn{flex:1;justify-content:center;padding:10px 10px;font-size:.7rem;gap:5px;}
+}
 
 .act-trigger{position:relative;display:inline-block;}
 .act-dots{font-family:var(--mono);font-size:1.1rem;line-height:1;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;transition:color .15s,border-color .15s,background .15s;}
@@ -169,7 +181,64 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
   .acts-mobile{display:flex !important;}
   table{min-width:600px;}
 }
-@media(max-width:600px){.stats{grid-template-columns:1fr 1fr;}.toolbar{flex-direction:column;gap:8px;}.search-wrap{min-width:100%;}}
+@media(max-width:600px){
+  .layout{padding:0 16px;}
+  header{padding:18px 0 14px;gap:8px;}
+  .logo{font-size:1.1rem;}
+  .header-right{gap:6px;}
+  .nav-link,.logout-btn{font-size:.66rem;padding:5px 10px;}
+  main{padding:18px 0;}
+  .stats{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+  .stat-card{padding:12px 14px;}
+  .stat-label{font-size:.58rem;margin-bottom:4px;}
+  .stat-value{font-size:1.4rem;}
+  .section-nav{gap:0;flex-wrap:wrap;}
+  .section-nav-btn{flex:1 1 0;justify-content:center;padding:10px 8px;font-size:.68rem;gap:5px;white-space:nowrap;min-width:0;}
+  .section-nav-btn svg{width:14px;height:14px;flex-shrink:0;}
+  .admin-tabs{flex-wrap:wrap;}
+  .admin-tab{flex:1 1 0;justify-content:center;padding:10px 8px;font-size:.72rem;gap:5px;white-space:nowrap;min-width:0;}
+  .admin-tab svg{width:13px;height:13px;flex-shrink:0;}
+  .toolbar{flex-direction:column;gap:8px;}
+  .search-wrap{min-width:100%;}
+  select{width:100%;}
+  .result-count{margin-left:0;}
+  .sel-controls{gap:4px;}
+  .sel-btn{font-size:.62rem;padding:4px 8px;}
+  .bulk-bar{flex-direction:column;gap:8px;padding:10px 12px;}
+  .bulk-acts{width:100%;display:flex;flex-wrap:wrap;gap:6px;}
+  .bulk-acts .btn{flex:1;text-align:center;min-width:0;font-size:.68rem;padding:7px 6px;}
+  .section-head{font-size:.65rem;margin:20px 0 8px;}
+  footer{flex-direction:column;gap:4px;font-size:.6rem;padding:14px 0;}
+}
+
+/* SMTP settings */
+.smtp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:28px;}
+.smtp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.smtp-field{display:flex;flex-direction:column;gap:4px;}
+.smtp-label{font-family:var(--mono);font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;}
+.smtp-input{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.8rem;padding:9px 12px;outline:none;transition:border-color .2s;width:100%;}
+.smtp-input:focus{border-color:var(--border2);}
+.smtp-input::placeholder{color:var(--muted2);}
+.smtp-hint{font-family:var(--mono);font-size:.6rem;color:var(--muted2);}
+.smtp-actions{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap;}
+.smtp-btn{font-family:var(--mono);font-size:.74rem;border-radius:var(--r);padding:8px 18px;cursor:pointer;border:1px solid;transition:background .15s,color .15s,transform .1s;white-space:nowrap;}
+.smtp-btn:hover{transform:translateY(-1px);}
+.smtp-btn-save{background:var(--accent-dim);border-color:rgba(127,255,127,.4);color:var(--accent);}
+.smtp-btn-save:hover{background:rgba(127,255,127,.15);}
+.smtp-btn-test{background:var(--info-dim);border-color:rgba(127,207,255,.4);color:var(--info);}
+.smtp-btn-test:hover{background:rgba(127,207,255,.15);}
+@keyframes spin{to{transform:rotate(360deg)}}
+.smtp-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(127,207,255,.3);border-top-color:var(--info);border-radius:50%;animation:spin .5s linear infinite;vertical-align:middle;margin-right:6px;}
+.smtp-btn.loading{pointer-events:none;opacity:.7;}
+.smtp-test-form{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.smtp-test-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.smtp-test-input{flex:1;min-width:180px;}
+@media(max-width:600px){
+  .smtp-grid{grid-template-columns:1fr;}
+  .smtp-test-row{flex-direction:column;}
+  .smtp-test-input{min-width:0;width:100%;}
+  .smtp-btn{width:100%;text-align:center;}
+}
 
 .freeze-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;}
 .freeze-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;gap:14px;transition:border-color .2s,box-shadow .2s;}
@@ -177,7 +246,7 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
 .freeze-card.freeze-active{border-color:rgba(255,127,127,.3);box-shadow:0 0 16px rgba(255,95,95,.06);}
 .freeze-card.freeze-warn{border-color:rgba(255,212,127,.3);box-shadow:0 0 16px rgba(255,212,127,.06);}
 .freeze-header{display:flex;align-items:flex-start;gap:12px;}
-.freeze-icon{font-size:1.5rem;line-height:1;flex-shrink:0;margin-top:2px;}
+.freeze-icon{font-size:1.5rem;line-height:1;flex-shrink:0;margin-top:2px;display:flex;align-items:center;}
 .freeze-title{font-size:.88rem;font-weight:700;margin-bottom:3px;}
 .freeze-desc{font-family:var(--mono);font-size:.65rem;color:var(--muted);line-height:1.5;}
 .freeze-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;border-top:1px solid var(--border);}
@@ -212,7 +281,7 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
   .freeze-grid{grid-template-columns:1fr;gap:10px;margin-bottom:20px;}
   .freeze-card{padding:14px 16px;gap:10px;flex-direction:row;align-items:center;flex-wrap:wrap;}
   .freeze-header{flex:1;min-width:0;gap:10px;align-items:center;}
-  .freeze-icon{font-size:1.2rem;margin-top:0;}
+  .freeze-icon{margin-top:0;}
   .freeze-title{font-size:.82rem;margin-bottom:0;}
   .freeze-desc{display:none;}
   .freeze-footer{border-top:none;padding-top:0;flex:0 0 auto;gap:8px;}
@@ -238,68 +307,15 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
   <main>
     {% if flash_html %}{{ flash_html|safe }}{% endif %}
 
-    <div class="section-head" style="margin-top:0">
-      <span>&#10052; freeze controls</span>
+    <!-- PRIMARY SECTION NAV -->
+    <div class="section-nav">
+      <button class="section-nav-btn active" data-section="dashboard" onclick="switchSection('dashboard',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg> Dashboard</button>
+      <button class="section-nav-btn" data-section="freeze" onclick="switchSection('freeze',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M2 12h20M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg> Freeze Controls</button>
+      <button class="section-nav-btn" data-section="smtp" onclick="switchSection('smtp',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg> Email / SMTP</button>
     </div>
-    <div class="freeze-grid">
-      <div class="freeze-card {{ 'freeze-warn' if freeze_pages == 'anon' else ('freeze-active' if freeze_pages == 'all' else '') }}">
-        <div class="freeze-header">
-          <div class="freeze-icon">&#128196;</div>
-          <div>
-            <div class="freeze-title">Page Uploads</div>
-            <div class="freeze-desc">Control who can upload new HTML pages</div>
-          </div>
-        </div>
-        <div class="freeze-footer">
-          <span class="freeze-status {{ 'fs-off' if freeze_pages == 'all' else ('fs-warn' if freeze_pages == 'anon' else 'fs-on') }}"><span class="fs-dot"></span>{{ freeze_pages if freeze_pages != 'off' else 'open' }}</span>
-          <div class="freeze-modes">
-            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="pages"/><input type="hidden" name="mode" value="off"/>
-              <button type="submit" class="fm-btn {{ 'fm-active fm-green' if freeze_pages == 'off' else '' }}" title="Everyone can upload">open</button></form>
-            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="pages"/><input type="hidden" name="mode" value="anon"/>
-              <button type="submit" class="fm-btn {{ 'fm-active fm-yellow' if freeze_pages == 'anon' else '' }}" title="Only logged-in users">anon</button></form>
-            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="pages"/><input type="hidden" name="mode" value="all"/>
-              <button type="submit" class="fm-btn {{ 'fm-active fm-red' if freeze_pages == 'all' else '' }}" title="Nobody can upload">all</button></form>
-          </div>
-        </div>
-      </div>
-      <div class="freeze-card {{ 'freeze-warn' if freeze_decks == 'anon' else ('freeze-active' if freeze_decks == 'all' else '') }}">
-        <div class="freeze-header">
-          <div class="freeze-icon">&#9707;</div>
-          <div>
-            <div class="freeze-title">Deck Creation</div>
-            <div class="freeze-desc">Control who can create new slide decks</div>
-          </div>
-        </div>
-        <div class="freeze-footer">
-          <span class="freeze-status {{ 'fs-off' if freeze_decks == 'all' else ('fs-warn' if freeze_decks == 'anon' else 'fs-on') }}"><span class="fs-dot"></span>{{ freeze_decks if freeze_decks != 'off' else 'open' }}</span>
-          <div class="freeze-modes">
-            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="decks"/><input type="hidden" name="mode" value="off"/>
-              <button type="submit" class="fm-btn {{ 'fm-active fm-green' if freeze_decks == 'off' else '' }}" title="Everyone can create">open</button></form>
-            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="decks"/><input type="hidden" name="mode" value="anon"/>
-              <button type="submit" class="fm-btn {{ 'fm-active fm-yellow' if freeze_decks == 'anon' else '' }}" title="Only logged-in users">anon</button></form>
-            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="decks"/><input type="hidden" name="mode" value="all"/>
-              <button type="submit" class="fm-btn {{ 'fm-active fm-red' if freeze_decks == 'all' else '' }}" title="Nobody can create">all</button></form>
-          </div>
-        </div>
-      </div>
-      <div class="freeze-card {{ 'freeze-active' if freeze_reg else '' }}">
-        <div class="freeze-header">
-          <div class="freeze-icon">&#9679;</div>
-          <div>
-            <div class="freeze-title">Registration</div>
-            <div class="freeze-desc">Control whether new users can create accounts</div>
-          </div>
-        </div>
-        <div class="freeze-footer">
-          <span class="freeze-status {{ 'fs-off' if freeze_reg else 'fs-on' }}"><span class="fs-dot"></span>{{ 'frozen' if freeze_reg else 'open' }}</span>
-          <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="reg"/>
-            <button type="submit" class="freeze-btn {{ 'fb-unfreeze' if freeze_reg else 'fb-freeze' }}">
-              {% if freeze_reg %}&#9654; unfreeze{% else %}&#10074;&#10074; freeze{% endif %}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
+
+    <!-- ===== DASHBOARD SECTION ===== -->
+    <div id="section-dashboard" class="admin-section active">
 
     <div class="stats">
       <div class="stat-card"><div class="stat-label">total pages</div><div class="stat-value">{{ total }}</div></div>
@@ -311,16 +327,16 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
 
     <!-- ADMIN TABS -->
     <div class="admin-tabs">
-      <button class="admin-tab active" data-tab="pages" onclick="switchAdminTab('pages',this)">&#128196; Pages <span class="tab-count">{{ total }}</span></button>
-      <button class="admin-tab" data-tab="decks" onclick="switchAdminTab('decks',this)">&#9707; Decks <span class="tab-count">{{ total_decks }}</span></button>
-      <button class="admin-tab" data-tab="users" onclick="switchAdminTab('users',this)">&#9679; Users <span class="tab-count">{{ total_users }}</span></button>
+      <button class="admin-tab active" data-tab="pages" onclick="switchAdminTab('pages',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Pages <span class="tab-count">{{ total }}</span></button>
+      <button class="admin-tab" data-tab="decks" onclick="switchAdminTab('decks',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> Decks <span class="tab-count">{{ total_decks }}</span></button>
+      <button class="admin-tab" data-tab="users" onclick="switchAdminTab('users',this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg> Users <span class="tab-count">{{ total_users }}</span></button>
     </div>
 
     <!-- PAGES PANEL -->
     <div id="panel-pages" class="admin-panel active">
       <div class="toolbar">
         <div class="search-wrap">
-          <span class="search-icon">&#128269;</span>
+          <span class="search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <input id="pq-input" type="text" placeholder="search by id, title or email&#8230;" value="" oninput="filterPages()"/>
         </div>
         <select id="ps-select" onchange="filterPages()">
@@ -371,7 +387,7 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
     <div id="panel-decks" class="admin-panel">
       <div class="toolbar">
         <div class="search-wrap">
-          <span class="search-icon">&#128269;</span>
+          <span class="search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <input id="dq-input" type="text" placeholder="search by id, title, or email&#8230;" value="" oninput="filterDecks()"/>
         </div>
         <select id="ds-select" onchange="filterDecks()">
@@ -424,7 +440,7 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
     <div id="panel-users" class="admin-panel">
       <div class="toolbar">
         <div class="search-wrap">
-          <span class="search-icon">&#128269;</span>
+          <span class="search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <input id="uq-input" type="text" placeholder="search by email&#8230;" value="" oninput="filterUsers()"/>
         </div>
         <select id="us-select" onchange="filterUsers()">
@@ -469,6 +485,181 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
       </div>
     </div>
 
+    </div><!-- /section-dashboard -->
+
+    <!-- ===== FREEZE CONTROLS SECTION ===== -->
+    <div id="section-freeze" class="admin-section">
+    <div class="section-head" style="margin-top:0">
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><path d="M12 2v20M2 12h20M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg> freeze controls</span>
+    </div>
+    <div class="freeze-grid">
+      <div class="freeze-card {{ 'freeze-warn' if freeze_pages == 'anon' else ('freeze-active' if freeze_pages == 'all' else '') }}">
+        <div class="freeze-header">
+          <div class="freeze-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></div>
+          <div>
+            <div class="freeze-title">Page Uploads</div>
+            <div class="freeze-desc">Control who can upload new HTML pages</div>
+          </div>
+        </div>
+        <div class="freeze-footer">
+          <span class="freeze-status {{ 'fs-off' if freeze_pages == 'all' else ('fs-warn' if freeze_pages == 'anon' else 'fs-on') }}"><span class="fs-dot"></span>{{ freeze_pages if freeze_pages != 'off' else 'open' }}</span>
+          <div class="freeze-modes">
+            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="pages"/><input type="hidden" name="mode" value="off"/>
+              <button type="submit" class="fm-btn {{ 'fm-active fm-green' if freeze_pages == 'off' else '' }}" title="Everyone can upload">open</button></form>
+            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="pages"/><input type="hidden" name="mode" value="anon"/>
+              <button type="submit" class="fm-btn {{ 'fm-active fm-yellow' if freeze_pages == 'anon' else '' }}" title="Only logged-in users">anon</button></form>
+            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="pages"/><input type="hidden" name="mode" value="all"/>
+              <button type="submit" class="fm-btn {{ 'fm-active fm-red' if freeze_pages == 'all' else '' }}" title="Nobody can upload">all</button></form>
+          </div>
+        </div>
+      </div>
+      <div class="freeze-card {{ 'freeze-warn' if freeze_decks == 'anon' else ('freeze-active' if freeze_decks == 'all' else '') }}">
+        <div class="freeze-header">
+          <div class="freeze-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
+          <div>
+            <div class="freeze-title">Deck Creation</div>
+            <div class="freeze-desc">Control who can create new slide decks</div>
+          </div>
+        </div>
+        <div class="freeze-footer">
+          <span class="freeze-status {{ 'fs-off' if freeze_decks == 'all' else ('fs-warn' if freeze_decks == 'anon' else 'fs-on') }}"><span class="fs-dot"></span>{{ freeze_decks if freeze_decks != 'off' else 'open' }}</span>
+          <div class="freeze-modes">
+            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="decks"/><input type="hidden" name="mode" value="off"/>
+              <button type="submit" class="fm-btn {{ 'fm-active fm-green' if freeze_decks == 'off' else '' }}" title="Everyone can create">open</button></form>
+            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="decks"/><input type="hidden" name="mode" value="anon"/>
+              <button type="submit" class="fm-btn {{ 'fm-active fm-yellow' if freeze_decks == 'anon' else '' }}" title="Only logged-in users">anon</button></form>
+            <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="decks"/><input type="hidden" name="mode" value="all"/>
+              <button type="submit" class="fm-btn {{ 'fm-active fm-red' if freeze_decks == 'all' else '' }}" title="Nobody can create">all</button></form>
+          </div>
+        </div>
+      </div>
+      <div class="freeze-card {{ 'freeze-active' if freeze_reg else '' }}">
+        <div class="freeze-header">
+          <div class="freeze-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M16 21a6 6 0 10-12 0"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg></div>
+          <div>
+            <div class="freeze-title">Registration</div>
+            <div class="freeze-desc">Control whether new users can create accounts</div>
+          </div>
+        </div>
+        <div class="freeze-footer">
+          <span class="freeze-status {{ 'fs-off' if freeze_reg else 'fs-on' }}"><span class="fs-dot"></span>{{ 'frozen' if freeze_reg else 'open' }}</span>
+          <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="reg"/>
+            <button type="submit" class="freeze-btn {{ 'fb-unfreeze' if freeze_reg else 'fb-freeze' }}">
+              {% if freeze_reg %}&#9654; unfreeze{% else %}&#10074;&#10074; freeze{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="freeze-card {{ 'freeze-warn' if require_verified_pages else '' }}">
+        <div class="freeze-header">
+          <div class="freeze-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
+          <div>
+            <div class="freeze-title">Verified Email for Pages</div>
+            <div class="freeze-desc">Require a verified email to upload pages</div>
+          </div>
+        </div>
+        <div class="freeze-footer">
+          <span class="freeze-status {{ 'fs-warn' if require_verified_pages else 'fs-on' }}"><span class="fs-dot"></span>{{ 'required' if require_verified_pages else 'optional' }}</span>
+          <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="require_verified_pages"/>
+            <button type="submit" class="freeze-btn {{ 'fb-unfreeze' if require_verified_pages else 'fb-freeze' }}">
+              {% if require_verified_pages %}&#9654; disable{% else %}&#10074;&#10074; enable{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="freeze-card {{ 'freeze-warn' if require_verified_decks else '' }}">
+        <div class="freeze-header">
+          <div class="freeze-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
+          <div>
+            <div class="freeze-title">Verified Email for Decks</div>
+            <div class="freeze-desc">Require a verified email to create decks</div>
+          </div>
+        </div>
+        <div class="freeze-footer">
+          <span class="freeze-status {{ 'fs-warn' if require_verified_decks else 'fs-on' }}"><span class="fs-dot"></span>{{ 'required' if require_verified_decks else 'optional' }}</span>
+          <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="require_verified_decks"/>
+            <button type="submit" class="freeze-btn {{ 'fb-unfreeze' if require_verified_decks else 'fb-freeze' }}">
+              {% if require_verified_decks %}&#9654; disable{% else %}&#10074;&#10074; enable{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="freeze-card {{ 'freeze-warn' if require_login_view_pages else '' }}">
+        <div class="freeze-header">
+          <div class="freeze-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+          <div>
+            <div class="freeze-title">Login to View Pages</div>
+            <div class="freeze-desc">Require login to view uploaded pages</div>
+          </div>
+        </div>
+        <div class="freeze-footer">
+          <span class="freeze-status {{ 'fs-warn' if require_login_view_pages else 'fs-on' }}"><span class="fs-dot"></span>{{ 'required' if require_login_view_pages else 'open' }}</span>
+          <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="require_login_view_pages"/>
+            <button type="submit" class="freeze-btn {{ 'fb-unfreeze' if require_login_view_pages else 'fb-freeze' }}">
+              {% if require_login_view_pages %}&#9654; disable{% else %}&#10074;&#10074; enable{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="freeze-card {{ 'freeze-warn' if require_login_view_decks else '' }}">
+        <div class="freeze-header">
+          <div class="freeze-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+          <div>
+            <div class="freeze-title">Login to View Decks</div>
+            <div class="freeze-desc">Require login to view slide decks</div>
+          </div>
+        </div>
+        <div class="freeze-footer">
+          <span class="freeze-status {{ 'fs-warn' if require_login_view_decks else 'fs-on' }}"><span class="fs-dot"></span>{{ 'required' if require_login_view_decks else 'open' }}</span>
+          <form method="POST" action="/admin/freeze"><input type="hidden" name="target" value="require_login_view_decks"/>
+            <button type="submit" class="freeze-btn {{ 'fb-unfreeze' if require_login_view_decks else 'fb-freeze' }}">
+              {% if require_login_view_decks %}&#9654; disable{% else %}&#10074;&#10074; enable{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    </div><!-- /section-freeze -->
+
+    <!-- ===== EMAIL / SMTP SECTION ===== -->
+    <div id="section-smtp" class="admin-section">
+    <div class="section-head" style="margin-top:0">
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg> email / smtp settings</span>
+    </div>
+    <div class="smtp-card">
+      <form method="POST" action="/admin/smtp">
+        <div class="smtp-grid">
+          <div class="smtp-field">
+            <label class="smtp-label">smtp email</label>
+            <input type="email" name="smtp_email" value="{{ smtp.email }}" placeholder="you@gmail.com" class="smtp-input"/>
+          </div>
+          <div class="smtp-field">
+            <label class="smtp-label">app password</label>
+            <input type="password" name="smtp_password" value="" placeholder="{% if smtp.password %}&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;{% else %}not set{% endif %}" class="smtp-input"/>
+            <span class="smtp-hint">Leave blank to keep current password</span>
+          </div>
+          <div class="smtp-field">
+            <label class="smtp-label">smtp host</label>
+            <input type="text" name="smtp_host" value="{{ smtp.host }}" placeholder="smtp.gmail.com" class="smtp-input"/>
+          </div>
+          <div class="smtp-field">
+            <label class="smtp-label">smtp port</label>
+            <input type="number" name="smtp_port" value="{{ smtp.port }}" placeholder="587" class="smtp-input" min="1" max="65535"/>
+          </div>
+        </div>
+        <div class="smtp-actions">
+          <button type="submit" class="smtp-btn smtp-btn-save">&#10003; save settings</button>
+        </div>
+      </form>
+      <form method="POST" action="/admin/smtp/test" class="smtp-test-form">
+        <div class="smtp-test-row">
+          <input type="email" name="test_to" placeholder="recipient (defaults to smtp email)" class="smtp-input smtp-test-input"/>
+          <button type="submit" class="smtp-btn smtp-btn-test" id="smtp-test-btn">&#9889; send test email</button>
+        </div>
+      </form>
+    </div>
+    </div><!-- /section-smtp -->
+
   </main>
 
   <footer>
@@ -510,6 +701,14 @@ footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono)
 /* inject _tab into all admin forms on submit */
 document.addEventListener('submit', function(e) {
   var form = e.target;
+  /* SMTP test email loading state */
+  if (form.action && form.action.indexOf('/admin/smtp/test') !== -1) {
+    var btn = document.getElementById('smtp-test-btn');
+    if (btn && !btn.classList.contains('loading')) {
+      btn.classList.add('loading');
+      btn.innerHTML = '<span class="smtp-spinner"></span>sending...';
+    }
+  }
   if (form.method && form.method.toLowerCase() === 'post' && !form.querySelector('[name="_tab"]')) {
     var inp = document.createElement('input');
     inp.type = 'hidden'; inp.name = '_tab'; inp.value = location.hash.replace('#','') || 'pages';
@@ -571,9 +770,25 @@ function switchAdminTab(name, btn) {
   document.getElementById('panel-' + name).classList.add('active');
   history.replaceState(null, '', '#' + name);
 }
+
+/* primary section nav */
+function switchSection(name, btn) {
+  document.querySelectorAll('.section-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('section-' + name).classList.add('active');
+  history.replaceState(null, '', '#' + name);
+}
+
 (function(){
   var hash = location.hash.replace('#','');
-  if (hash === 'pages' || hash === 'decks' || hash === 'users') {
+  /* section-level nav */
+  if (hash === 'freeze' || hash === 'smtp') {
+    var secBtn = document.querySelector('.section-nav-btn[data-section="' + hash + '"]');
+    if (secBtn) switchSection(hash, secBtn);
+  }
+  /* sub-tab nav within dashboard */
+  else if (hash === 'pages' || hash === 'decks' || hash === 'users') {
     var btn = document.querySelector('.admin-tab[data-tab="' + hash + '"]');
     if (btn) switchAdminTab(hash, btn);
   }

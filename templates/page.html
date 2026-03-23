@@ -58,7 +58,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     .dropzone{border:1.5px dashed var(--border);border-radius:var(--r);padding:56px 24px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;}
     .dropzone:hover,.dropzone.over{border-color:var(--accent);background:var(--accent-dim);}
     .dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-    .dz-icon{font-size:2rem;display:block;margin-bottom:10px;}
+    .dz-icon{display:flex;justify-content:center;margin-bottom:10px;color:var(--muted);}
     .dz-text{font-family:var(--mono);font-size:.8rem;color:var(--muted);line-height:1.6;}
     .dz-text strong{color:var(--text);display:block;margin-bottom:4px;}
     .file-name{font-family:var(--mono);font-size:.78rem;color:var(--accent);margin-top:10px;}
@@ -111,7 +111,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
         <input type="text" name="title" placeholder="Page title (optional)" maxlength="120" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.8rem;padding:10px 14px;outline:none;margin-bottom:10px;transition:border-color .2s;" onfocus="this.style.borderColor='var(--border2)'" onblur="this.style.borderColor='var(--border)'"/>
         <div class="dropzone" id="dz">
           <input type="file" name="file" accept=".html,.htm" onchange="fileChosen(this)"/>
-          <span class="dz-icon">&#8679;</span>
+          <span class="dz-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg></span>
           <div class="dz-text"><strong>drop an .html file here</strong>or click to browse</div>
           <div class="file-name" id="fname"></div>
         </div>

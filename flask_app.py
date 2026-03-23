@@ -56,12 +56,29 @@ SETTINGS_FILE = os.path.join(BASE, "settings.json")
 USERS_FILE = os.path.join(BASE, "users.json")
 
 # ---------------------------------------------------------------------------
-# email config
+# email config (defaults — overridden by settings.json if present)
 # ---------------------------------------------------------------------------
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
-SMTP_APP_PASSWORD = os.environ.get("SMTP_APP_PASSWORD")
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = 587
+_SMTP_EMAIL_DEFAULT = os.environ.get("SMTP_EMAIL", "")
+_SMTP_APP_PASSWORD_DEFAULT = os.environ.get("SMTP_APP_PASSWORD", "")
+_SMTP_HOST_DEFAULT = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+_SMTP_PORT_DEFAULT = int(os.environ.get("SMTP_PORT", "587"))
+
+def _get_smtp_config():
+    """Return SMTP config from settings.json, falling back to env/.env defaults."""
+    s = load_settings()
+    smtp = s.get("smtp", {})
+    return {
+        "email": smtp.get("email") or _SMTP_EMAIL_DEFAULT,
+        "password": smtp.get("password") or _SMTP_APP_PASSWORD_DEFAULT,
+        "host": smtp.get("host") or _SMTP_HOST_DEFAULT,
+        "port": smtp.get("port") or _SMTP_PORT_DEFAULT,
+    }
+
+# Keep module-level references for backward compat (used nowhere critical now)
+SMTP_EMAIL = _SMTP_EMAIL_DEFAULT
+SMTP_APP_PASSWORD = _SMTP_APP_PASSWORD_DEFAULT
+SMTP_HOST = _SMTP_HOST_DEFAULT
+SMTP_PORT = _SMTP_PORT_DEFAULT
 
 # in-memory token store: {token: {type, email, payload, expires}}
 _tokens = {}
@@ -73,11 +90,17 @@ TOKEN_EXPIRY = 15 * 60  # 15 minutes
 
 def load_settings():
     if not os.path.exists(SETTINGS_FILE):
-        return {"freeze_pages": "off", "freeze_decks": "off", "freeze_reg": False, "pinned": None}
+        return {"freeze_pages": "off", "freeze_decks": "off", "freeze_reg": False, "pinned": None,
+                "require_verified_pages": False, "require_verified_decks": False,
+                "require_login_view_pages": False, "require_login_view_decks": False}
     with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
         s = json.load(f)
     s.setdefault("pinned", None)
     s.setdefault("freeze_reg", False)
+    s.setdefault("require_verified_pages", False)
+    s.setdefault("require_verified_decks", False)
+    s.setdefault("require_login_view_pages", False)
+    s.setdefault("require_login_view_decks", False)
     # migrate old boolean format to tri-state
     for key in ("freeze_pages", "freeze_decks"):
         if isinstance(s.get(key), bool):
@@ -98,19 +121,20 @@ def save_settings(s):
 
 def send_email(to_email, subject, html_body):
     """Send email synchronously. Returns True on success, False on failure."""
-    if not SMTP_EMAIL or not SMTP_APP_PASSWORD:
-        print("[EMAIL ERROR] SMTP_EMAIL or SMTP_APP_PASSWORD not configured.")
+    cfg = _get_smtp_config()
+    if not cfg["email"] or not cfg["password"]:
+        print("[EMAIL ERROR] SMTP email or password not configured.")
         return False
     try:
         msg = MIMEMultipart("alternative")
-        msg["From"] = f"htmldrop <{SMTP_EMAIL}>"
+        msg["From"] = f"htmldrop <{cfg['email']}>"
         msg["To"] = to_email
         msg["Subject"] = subject
         msg.attach(MIMEText(html_body, "html"))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(cfg["host"], cfg["port"]) as server:
             server.starttls()
-            server.login(SMTP_EMAIL, SMTP_APP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+            server.login(cfg["email"], cfg["password"])
+            server.sendmail(cfg["email"], to_email, msg.as_string())
         return True
     except Exception as e:
         print(f"[EMAIL ERROR] Failed to send to {to_email}: {e}")
@@ -241,7 +265,7 @@ def send_account_deleted_email(email):
     html = _email_wrap(f"""
     <h2 style="margin:0 0 16px;font-size:18px;color:#ff7f7f;">Account deleted</h2>
     <p>Your htmldrop account <strong style="color:#7fcfff;">{email}</strong> has been deleted by an administrator.</p>
-    <p>All your account data has been removed. Your uploaded pages and decks may still exist.</p>
+    <p>All your account data has been removed. Your uploaded pages and decks were not deleted and may still be publicly accessible.</p>
     """)
     send_email_async(email, "Account deleted — htmldrop", html)
 
@@ -271,7 +295,7 @@ def send_delete_account_email(email, site_url):
     <h2 style="margin:0 0 16px;font-size:18px;color:#ff7f7f;">Confirm account deletion</h2>
     <p>You requested to delete your htmldrop account <strong style="color:#7fcfff;">{email}</strong>.</p>
     <p style="color:#ff7f7f;font-weight:bold;">This action is permanent and cannot be undone.</p>
-    <p>Your pages and decks will remain but will no longer be linked to an account.</p>
+    <p><strong style="color:#ffd47f;">Important:</strong> Your pages and decks will not be removed automatically. They will remain publicly accessible but will no longer be linked to your account. Please delete them manually before proceeding if you wish to remove them.</p>
     <a href="{link}" style="display:inline-block;background:#ff7f7f;color:#1a0a0a;font-weight:bold;text-decoration:none;padding:12px 28px;border-radius:6px;margin:16px 0;">Confirm Deletion &rarr;</a>
     <p style="font-size:12px;color:#6b6b80;">This link expires in 15 minutes. If you didn't request this, just ignore this email.</p>
     """)
@@ -463,7 +487,7 @@ def admin_required(f):
 def _admin_redirect():
     tab = request.form.get("_tab", "")
     base = url_for("admin")
-    if tab in ("pages", "decks", "users"):
+    if tab in ("pages", "decks", "users", "freeze", "smtp"):
         return redirect(f"{base}#{tab}")
     return redirect(base)
 
@@ -537,8 +561,10 @@ def render_index(error="", page_id="", prefill="", host=""):
         result_html = (f'<div class="result">'
                        f'<div><div class="rlabel">&#10003; your page is live</div>'
                        f'<div class="rurl" id="rurl">{url}</div></div>'
+                       f'<div style="display:flex;gap:8px">'
                        f'<button class="copy-btn" onclick="copyUrl()">copy link</button>'
-                       f'</div>')
+                       f'<a class="copy-btn" href="{url}" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center">open page</a>'
+                       f'</div></div>')
     safe = prefill.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return render_template("page.html", active_nav="page",
                            error_html=error_html, result_html=result_html,
@@ -560,8 +586,10 @@ def render_deck_page(error="", deck_id="", host=""):
         result_html = (f'<div class="result">'
                        f'<div><div class="rlabel">&#10003; your deck is live</div>'
                        f'<div class="rurl" id="rurl">{url}</div></div>'
+                       f'<div style="display:flex;gap:8px">'
                        f'<button class="copy-btn" onclick="copyUrl()">copy link</button>'
-                       f'</div>')
+                       f'<a class="copy-btn" href="{url}" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center">open deck</a>'
+                       f'</div></div>')
     return render_template("deck.html", active_nav="deck",
                            error_html=error_html, result_html=result_html)
 
@@ -632,7 +660,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
 
     # build page rows HTML
     if not pages:
-        rows_html = '<tr class="page-empty-row"><td colspan="9"><div class="empty"><span class="empty-icon">&#128237;</span>No pages yet. <a href="/">Share your first page &rarr;</a></div></td></tr>'
+        rows_html = '<tr class="page-empty-row"><td colspan="9"><div class="empty"><span class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span>No pages yet. <a href="/">Share your first page &rarr;</a></div></td></tr>'
     else:
         rows = []
         for p in pages:
@@ -714,7 +742,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
 
     # build deck rows HTML
     if not deck_list:
-        deck_rows_html = '<tr class="deck-empty-row"><td colspan="9"><div class="empty"><span class="empty-icon">&#9707;</span>No decks yet. <a href="/deck">Create your first deck &rarr;</a></div></td></tr>'
+        deck_rows_html = '<tr class="deck-empty-row"><td colspan="9"><div class="empty"><span class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>No decks yet. <a href="/deck">Create your first deck &rarr;</a></div></td></tr>'
     else:
         deck_rows = []
         for d in deck_list:
@@ -822,7 +850,7 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
     blocked_users = sum(1 for u in user_list if u.get("blocked"))
 
     if not user_list:
-        user_rows_html = '<tr class="user-empty-row"><td colspan="8"><div class="empty"><span class="empty-icon">&#9679;</span>No users yet.</div></td></tr>'
+        user_rows_html = '<tr class="user-empty-row"><td colspan="8"><div class="empty"><span class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg></span>No users yet.</div></td></tr>'
     else:
         user_rows = []
         for u in user_list:
@@ -886,11 +914,16 @@ def build_admin_page(meta, flash_msg=None, flash_type="ok"):
                            flash_html=flash_html,
                            freeze_pages=freeze_pages, freeze_decks=freeze_decks,
                            freeze_reg=freeze_reg,
+                           require_verified_pages=settings.get("require_verified_pages", False),
+                           require_verified_decks=settings.get("require_verified_decks", False),
+                           require_login_view_pages=settings.get("require_login_view_pages", False),
+                           require_login_view_decks=settings.get("require_login_view_decks", False),
                            total=total, total_hits=total_hits,
                            total_decks=total_decks, total_deck_hits=total_deck_hits,
                            total_users=total_users, blocked_users=blocked_users,
                            rows_html=rows_html, deck_rows_html=deck_rows_html,
-                           user_rows_html=user_rows_html)
+                           user_rows_html=user_rows_html,
+                           smtp=_get_smtp_config())
 
 # ---------------------------------------------------------------------------
 # routes — pages
@@ -914,15 +947,18 @@ def page_create():
 @app.route("/share", methods=["POST"])
 @limiter.limit("10 per minute")
 def share():
-    fp = load_settings().get("freeze_pages", "off")
+    settings = load_settings()
+    fp = settings.get("freeze_pages", "off")
     if _is_frozen(fp):
         msg = "Uploading is restricted to logged-in users." if fp == "anon" else "Uploading new pages is currently disabled by the administrator."
         return render_index(error=msg)
-    # require verified email for logged-in users
+    # require verified email if admin setting enabled
     current = get_current_user()
-    if current:
-        users = load_users()
-        if current in users and not users[current].get("email_verified", False):
+    if settings.get("require_verified_pages"):
+        if not current:
+            return render_index(error='Verified account required to upload. <a href="/login">Log in</a> or <a href="/register">register</a>.')
+        users_data = load_users()
+        if current in users_data and not users_data[current].get("email_verified", False):
             return render_index(error="Please verify your email before uploading. Check your profile page.")
     content = None
     if "file" in request.files and request.files["file"].filename:
@@ -955,6 +991,10 @@ def share():
 @app.route("/p/<page_id>")
 def view_page(page_id):
     pid = re.sub(r"[^a-zA-Z0-9]", "", page_id)[:20]
+    if load_settings().get("require_login_view_pages") and not get_current_user():
+        return error_page(403, "Login required",
+                          "Viewing pages requires a logged-in account.",
+                          '<a href="/login">Log in</a> to view this page.')
     meta = get_page_meta(pid)
     if meta is None or not os.path.exists(os.path.join(PAGES_DIR, f"{pid}.html")):
         return error_page(404, "Page not found",
@@ -993,16 +1033,20 @@ def deck_create():
 @limiter.limit("10 per minute")
 def deck_import_zai():
     """Accept pre-fetched z.ai slides from the client and create a deck."""
-    fd = load_settings().get("freeze_decks", "off")
+    settings = load_settings()
+    fd = settings.get("freeze_decks", "off")
     if _is_frozen(fd):
         msg = "Deck creation is restricted to logged-in users." if fd == "anon" else "Creating new decks is currently disabled by the administrator."
         return Response(json.dumps({"error": msg}),
                         mimetype="application/json", status=403)
-    # require verified email
+    # require verified email if admin setting enabled
     current = get_current_user()
-    if current:
-        users = load_users()
-        if current in users and not users[current].get("email_verified", False):
+    if settings.get("require_verified_decks"):
+        if not current:
+            return Response(json.dumps({"error": "Verified account required to create decks."}),
+                            mimetype="application/json", status=403)
+        users_data = load_users()
+        if current in users_data and not users_data[current].get("email_verified", False):
             return Response(json.dumps({"error": "Please verify your email before creating decks."}),
                             mimetype="application/json", status=403)
     data = request.get_json(silent=True) or {}
@@ -1055,15 +1099,18 @@ def deck_import_zai():
 @app.route("/deck/create", methods=["POST"])
 @limiter.limit("10 per minute")
 def deck_save():
-    fd = load_settings().get("freeze_decks", "off")
+    settings = load_settings()
+    fd = settings.get("freeze_decks", "off")
     if _is_frozen(fd):
         msg = "Deck creation is restricted to logged-in users." if fd == "anon" else "Creating new decks is currently disabled by the administrator."
         return render_deck_page(error=msg)
-    # require verified email
+    # require verified email if admin setting enabled
     current = get_current_user()
-    if current:
-        users = load_users()
-        if current in users and not users[current].get("email_verified", False):
+    if settings.get("require_verified_decks"):
+        if not current:
+            return render_deck_page(error='Verified account required to create decks. <a href="/login">Log in</a> or <a href="/register">register</a>.')
+        users_data = load_users()
+        if current in users_data and not users_data[current].get("email_verified", False):
             return render_deck_page(error="Please verify your email before creating decks. Check your profile page.")
     title = request.form.get("title", "").strip() or "Untitled Deck"
     slides = []
@@ -1126,6 +1173,10 @@ def deck_save():
 @app.route("/d/<deck_id>")
 def view_deck(deck_id):
     did = re.sub(r"[^a-zA-Z0-9]", "", deck_id)[:20]
+    if load_settings().get("require_login_view_decks") and not get_current_user():
+        return error_page(403, "Login required",
+                          "Viewing decks requires a logged-in account.",
+                          '<a href="/login">Log in</a> to view this deck.')
     deck_dir = os.path.join(DECKS_DIR, did)
     manifest_path = os.path.join(deck_dir, "manifest.json")
 
@@ -1198,11 +1249,13 @@ def user_register():
                                    error_html='<div class="err">&#9888; an account with this email already exists</div>')
         session["user_email"] = email
         update_user(email, last_login=datetime.now(timezone.utc).isoformat(), last_action="register")
-        # send welcome + verification emails
+        # send welcome email; send verification only if admin requires it
         send_welcome_email(email)
-        if not send_verification_email_with_url(email, request.host_url):
-            session["profile_flash"] = "Account created, but verification email failed. Please try again later from your profile."
-            session["profile_flash_type"] = "err"
+        settings = load_settings()
+        if settings.get("require_verified_pages") or settings.get("require_verified_decks"):
+            if not send_verification_email_with_url(email, request.host_url):
+                session["profile_flash"] = "Account created, but verification email failed. Please try again later from your profile."
+                session["profile_flash_type"] = "err"
         return redirect(url_for("profile"))
     return render_template("register.html", active_nav="", error_html="")
 
@@ -1280,12 +1333,86 @@ def profile():
     user_decks.sort(key=lambda d: d.get("created", ""), reverse=True)
 
     users = load_users()
-    email_verified = users.get(email, {}).get("email_verified", False)
+    user_data = users.get(email, {})
+    email_verified = user_data.get("email_verified", False)
+    public_profile = user_data.get("public_profile", False)
+    # ensure persistent profile_id exists
+    profile_id = user_data.get("profile_id")
+    if not profile_id:
+        profile_id = uuid.uuid4().hex[:10]
+        update_user(email, profile_id=profile_id)
+    settings = load_settings()
+    require_verification = settings.get("require_verified_pages", False) or settings.get("require_verified_decks", False)
 
     return render_template("profile.html", active_nav="profile",
                            email=email, pages=user_pages, decks=user_decks,
                            flash_msg=flash_msg, flash_type=flash_type,
-                           email_verified=email_verified)
+                           email_verified=email_verified,
+                           require_verification=require_verification,
+                           public_profile=public_profile,
+                           profile_hash=profile_id)
+
+
+@app.route("/profile/toggle-public", methods=["POST"])
+@login_required
+@limiter.limit("10 per minute")
+def profile_toggle_public():
+    email = get_current_user()
+    users = load_users()
+    current = users.get(email, {}).get("public_profile", False)
+    update_user(email, public_profile=not current,
+                last_active=datetime.now(timezone.utc).isoformat(),
+                last_action="toggle_public_profile")
+    session["profile_flash"] = "Public profile enabled." if not current else "Public profile disabled."
+    session["profile_flash_type"] = "ok"
+    return redirect(url_for("profile") + "#settings")
+
+
+@app.route("/u/<profile_id>")
+@limiter.limit("60 per minute")
+def public_profile(profile_id):
+    pid = re.sub(r"[^a-fA-F0-9]", "", profile_id)[:10]
+    users = load_users()
+    # find user by stored profile_id
+    target_email = None
+    for em, udata in users.items():
+        if udata.get("profile_id") == pid:
+            target_email = em
+            break
+    if not target_email:
+        return error_page(404, "Profile not found",
+                          "This public profile doesn\u2019t exist.",
+                          "The link may be incorrect or the profile was removed.")
+    user_data = users[target_email]
+    if not user_data.get("public_profile", False):
+        return error_page(404, "Profile not found",
+                          "This profile is not public.",
+                          "The user has not enabled their public profile.")
+    if user_data.get("blocked"):
+        return error_page(451, "Profile unavailable",
+                          "This profile has been blocked by an administrator.",
+                          f"id: {pid}")
+    # gather public pages
+    meta = load_meta()
+    pub_pages = []
+    for page_id, info in meta.items():
+        if info.get("owner") == target_email and not info.get("blocked") \
+                and os.path.exists(os.path.join(PAGES_DIR, f"{page_id}.html")):
+            pub_pages.append({**info, "id": page_id})
+    pub_pages.sort(key=lambda p: p.get("created", ""), reverse=True)
+    # gather public decks
+    decks_meta = load_decks_meta()
+    pub_decks = []
+    for did, dinfo in decks_meta.items():
+        if dinfo.get("owner") == target_email and not dinfo.get("blocked") \
+                and os.path.isdir(os.path.join(DECKS_DIR, did)):
+            pub_decks.append({**dinfo, "id": did})
+    pub_decks.sort(key=lambda d: d.get("created", ""), reverse=True)
+    display_name = target_email.split("@")[0]
+    return render_template("public_profile.html",
+                           display_name=display_name,
+                           pages=pub_pages, decks=pub_decks,
+                           profile_id=pid)
 
 
 @app.route("/profile/delete_page", methods=["POST"])
@@ -1353,6 +1480,11 @@ def verify_email():
 @limiter.limit("3 per minute")
 def resend_verification():
     email = get_current_user()
+    settings = load_settings()
+    if not (settings.get("require_verified_pages") or settings.get("require_verified_decks")):
+        session["profile_flash"] = "Email verification is not currently required."
+        session["profile_flash_type"] = "ok"
+        return redirect(url_for("profile"))
     users = load_users()
     if email in users and users[email].get("email_verified"):
         session["profile_flash"] = "Email is already verified."
@@ -1617,11 +1749,77 @@ def admin_freeze():
         state = "frozen" if s["freeze_reg"] else "unfrozen"
         session["flash"] = f"New registrations {state}."
         session["flash_type"] = "ok"
+    elif target in ("require_verified_pages", "require_verified_decks",
+                     "require_login_view_pages", "require_login_view_decks"):
+        s[target] = not s.get(target, False)
+        state = "enabled" if s[target] else "disabled"
+        labels = {
+            "require_verified_pages": "Verified-email required for page uploads",
+            "require_verified_decks": "Verified-email required for deck creation",
+            "require_login_view_pages": "Login required to view pages",
+            "require_login_view_decks": "Login required to view decks",
+        }
+        session["flash"] = f"{labels[target]}: {state}."
+        session["flash_type"] = "ok"
     else:
         session["flash"] = "Unknown freeze target."
         session["flash_type"] = "err"
     save_settings(s)
     return _admin_redirect()
+
+
+@app.route("/admin/smtp", methods=["POST"])
+@admin_required
+def admin_smtp():
+    s = load_settings()
+    smtp_email = request.form.get("smtp_email", "").strip()
+    smtp_password = request.form.get("smtp_password", "").strip()
+    smtp_host = request.form.get("smtp_host", "").strip() or "smtp.gmail.com"
+    try:
+        smtp_port = int(request.form.get("smtp_port", "587"))
+    except ValueError:
+        smtp_port = 587
+    # preserve existing password if field left blank
+    prev = s.get("smtp", {})
+    if not smtp_password:
+        smtp_password = prev.get("password", "")
+    s["smtp"] = {
+        "email": smtp_email,
+        "password": smtp_password,
+        "host": smtp_host,
+        "port": smtp_port,
+    }
+    save_settings(s)
+    session["flash"] = "SMTP settings saved."
+    session["flash_type"] = "ok"
+    return redirect(url_for("admin") + "#smtp")
+
+
+@app.route("/admin/smtp/test", methods=["POST"])
+@admin_required
+@limiter.limit("3 per minute")
+def admin_smtp_test():
+    cfg = _get_smtp_config()
+    if not cfg["email"] or not cfg["password"]:
+        session["flash"] = "SMTP not configured — please save credentials first."
+        session["flash_type"] = "err"
+        return redirect(url_for("admin") + "#smtp")
+    to = request.form.get("test_to", "").strip()
+    if not to:
+        to = cfg["email"]
+    html = _email_wrap("""
+    <h2 style="margin:0 0 16px;font-size:18px;color:#7fff7f;">SMTP Test &#9989;</h2>
+    <p>This is a test email from your htmldrop admin panel.</p>
+    <p>If you’re reading this, your SMTP configuration is working correctly!</p>
+    """)
+    ok = send_email(to, "SMTP test — htmldrop", html)
+    if ok:
+        session["flash"] = f"Test email sent to {to}."
+        session["flash_type"] = "ok"
+    else:
+        session["flash"] = "Test email failed — check credentials and server logs."
+        session["flash_type"] = "err"
+    return redirect(url_for("admin") + "#smtp")
 
 
 @app.route("/admin/pin", methods=["POST"])

@@ -70,7 +70,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     .del-btn{font-family:var(--mono);font-size:.7rem;color:var(--accent2);border:1px solid rgba(255,127,127,.3);border-radius:var(--r);padding:6px 12px;background:none;cursor:pointer;white-space:nowrap;transition:background .15s;}
     .del-btn:hover{background:var(--accent2-dim);}
     .empty{padding:40px 24px;text-align:center;font-family:var(--mono);color:var(--muted);font-size:.82rem;line-height:1.8;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);}
-    .empty-icon{font-size:2rem;display:block;margin-bottom:10px;opacity:.4;}
+    .empty-icon{display:flex;justify-content:center;margin-bottom:10px;opacity:.4;}
     footer{border-top:1px solid var(--border);padding:18px 0;font-family:var(--mono);font-size:.66rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;}
     .modal-overlay.open{display:flex;animation:fadeIn .2s ease;}
@@ -110,7 +110,13 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
     @keyframes spin{to{transform:rotate(360deg)}}
     .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:currentColor;border-radius:50%;animation:spin .5s linear infinite;vertical-align:middle;margin-right:6px;}
     .btn-loading,.vb-btn.loading,.settings-btn.loading,.logout-btn.loading,.del-btn.loading{pointer-events:none;opacity:.7;}
-    @media(max-width:600px){.stats{grid-template-columns:1fr;} .settings-row{flex-direction:column;} .settings-row .field{min-width:0;width:100%;} .settings-btn{width:100%;text-align:center;}}
+    .section-nav{display:flex;gap:6px;margin-bottom:24px;border-bottom:2px solid var(--border);padding-bottom:0;flex-wrap:wrap;}
+    .section-nav-btn{font-family:var(--mono);font-size:.78rem;padding:10px 20px;cursor:pointer;color:var(--muted);border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:7px;white-space:nowrap;}
+    .section-nav-btn:hover{color:var(--text);}
+    .section-nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+    .profile-section{display:none;}
+    .profile-section.active{display:block;animation:fadeIn .2s ease;}
+    @media(max-width:600px){.stats{grid-template-columns:1fr;} .settings-row{flex-direction:column;} .settings-row .field{min-width:0;width:100%;} .settings-btn{width:100%;text-align:center;} .section-nav{gap:0;} .section-nav-btn{flex:1;justify-content:center;padding:10px 10px;font-size:.7rem;gap:5px;}}
   </style>
 </head>
 <body>
@@ -128,9 +134,9 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
           <div class="profile-email">
             {{ email }}
             {% if email_verified %}
-            <span class="verified-badge">&#10003; verified</span>
-            {% else %}
-            <span class="unverified-badge">&#9888; unverified</span>
+            <span class="verified-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg> verified</span>
+            {% elif require_verification %}
+            <span class="unverified-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> unverified</span>
             {% endif %}
           </div>
           <div class="profile-label">your account</div>
@@ -141,9 +147,9 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
       </form>
     </div>
 
-    {% if not email_verified %}
+    {% if not email_verified and require_verification %}
     <div class="verify-banner">
-      <span class="vb-text">&#9888; Verify your email to unlock uploading pages and creating decks.</span>
+      <span class="vb-text"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Verify your email to unlock uploading pages and/or creating decks.</span>
       <form method="POST" action="/profile/resend-verification" style="margin:0">
         <button type="submit" class="vb-btn">Send verification email</button>
       </form>
@@ -155,8 +161,17 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
       <div class="stat-card"><div class="stat-label">your decks</div><div class="stat-value">{{ decks|length }}</div></div>
     </div>
 
+    <!-- SECTION NAV -->
+    <div class="section-nav">
+      <button class="section-nav-btn active" onclick="switchSection('pages',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Pages</button>
+      <button class="section-nav-btn" onclick="switchSection('decks',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> Decks</button>
+      <button class="section-nav-btn" onclick="switchSection('settings',this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001.08 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1.08z"/></svg> Account Settings</button>
+    </div>
+
+    <!-- PAGES SECTION -->
+    <div id="section-pages" class="profile-section active">
     <div class="section-head">
-      <span>&#128196; your pages</span>
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> your pages</span>
       <a href="/page" style="font-size:.7rem;color:var(--accent);text-decoration:none">+ new page</a>
     </div>
     {% if pages %}
@@ -179,11 +194,14 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty"><span class="empty-icon">&#128196;</span>No pages yet. <a href="/page">Create your first page &rarr;</a></div>
+    <div class="empty"><span class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span>No pages yet. <a href="/page">Create your first page &rarr;</a></div>
     {% endif %}
+    </div>
 
-    <div class="section-head" style="margin-top:32px;">
-      <span>&#9707; your decks</span>
+    <!-- DECKS SECTION -->
+    <div id="section-decks" class="profile-section">
+    <div class="section-head">
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> your decks</span>
       <a href="/deck" style="font-size:.7rem;color:var(--accent);text-decoration:none">+ new deck</a>
     </div>
     {% if decks %}
@@ -204,17 +222,44 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty"><span class="empty-icon">&#9707;</span>No decks yet. <a href="/deck">Create your first deck &rarr;</a></div>
+    <div class="empty"><span class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>No decks yet. <a href="/deck">Create your first deck &rarr;</a></div>
     {% endif %}
+    </div>
 
-    <!-- Account Settings -->
-    <div class="section-head" style="margin-top:32px;">
-      <span>&#9881; account settings</span>
+    <!-- ACCOUNT SETTINGS SECTION -->
+    <div id="section-settings" class="profile-section">
+    <div class="section-head">
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001.08 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1.08z"/></svg> account settings</span>
+    </div>
+
+    <!-- Public Profile -->
+    <div class="settings-section">
+      <div class="settings-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg> Public profile</div>
+      <p class="settings-help">When enabled, your pages and decks will be visible on a shareable public profile page. Others can view your published content at the link below.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          {% if public_profile %}
+          <span class="verified-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><polyline points="20 6 9 17 4 12"/></svg> public</span>
+          {% else %}
+          <span class="unverified-badge" style="color:var(--muted);border-color:var(--border);background:var(--surface2);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> private</span>
+          {% endif %}
+          {% if public_profile %}
+          <a href="/u/{{ profile_hash }}" target="_blank" style="font-family:var(--mono);font-size:.72rem;color:var(--accent);">/u/{{ profile_hash }}</a>
+          {% endif %}
+        </div>
+        <form method="POST" action="/profile/toggle-public" style="margin:0;">
+          {% if public_profile %}
+          <button type="submit" class="settings-btn settings-btn-warn">Make private</button>
+          {% else %}
+          <button type="submit" class="settings-btn settings-btn-primary">Make public</button>
+          {% endif %}
+        </form>
+      </div>
     </div>
 
     <!-- Change Password -->
     <div class="settings-section">
-      <div class="settings-title">&#128274; Change password</div>
+      <div class="settings-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Change password</div>
       <p class="settings-help">A confirmation link will be sent to your email. You'll set your new password from there.</p>
       <form method="POST" action="/profile/request-change-password" style="margin-top:12px;">
         <button type="submit" class="settings-btn settings-btn-warn">Send password change link</button>
@@ -223,7 +268,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
 
     <!-- Change Email -->
     <div class="settings-section">
-      <div class="settings-title">&#9993; Change email</div>
+      <div class="settings-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg> Change email</div>
       <p class="settings-help">Enter your current password and new email address. A verification email will be sent to your new address.</p>
       <form method="POST" action="/profile/change-email" style="margin-top:12px;">
         <div class="settings-row">
@@ -242,11 +287,12 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
 
     <!-- Delete Account -->
     <div class="settings-section danger-zone">
-      <div class="settings-title" style="color:var(--accent2);">&#9888; Delete account</div>
-      <p class="settings-help">A confirmation link will be sent to your email. Your pages and decks will not be deleted, but they will no longer be linked to your account. This action is permanent.</p>
-      <form method="POST" action="/profile/request-delete-account" style="margin-top:12px;">
-        <button type="submit" class="settings-btn settings-btn-danger" onclick="return confirm('Are you sure? A deletion confirmation email will be sent.')">Request account deletion</button>
+      <div class="settings-title" style="color:var(--accent2);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Delete account</div>
+      <p class="settings-help">Deleting your account does not remove your pages or decks — they will remain publicly accessible but unlinked from any account. If you wish to remove them, please delete them manually before proceeding. A confirmation link will be sent to your email. This action is permanent and cannot be undone.</p>
+      <form id="del-account-form" method="POST" action="/profile/request-delete-account" style="margin-top:12px;">
+        <button type="button" class="settings-btn settings-btn-danger" onclick="confirmDelete('account','')">Request account deletion</button>
       </form>
+    </div>
     </div>
   </main>
   <footer>
@@ -277,9 +323,16 @@ var pendingType='', pendingId='';
 function confirmDelete(type, id) {
   pendingType = type;
   pendingId = id;
-  var label = type === 'page' ? 'page' : 'deck';
-  document.getElementById('m-title').textContent = 'Delete this ' + label + '?';
-  document.getElementById('m-body').textContent = 'This will permanently remove ' + label + ' ' + id + '. This cannot be undone.';
+  if (type === 'account') {
+    document.getElementById('m-title').textContent = 'Delete your account?';
+    document.getElementById('m-body').innerHTML = 'Your pages and decks will <strong>not</strong> be deleted automatically \u2014 they will remain publicly accessible. Please remove them manually before proceeding if needed.<br><br>A confirmation link will be sent to your email. This action is permanent and cannot be undone.';
+    document.getElementById('m-confirm').textContent = 'request deletion';
+  } else {
+    var label = type === 'page' ? 'page' : 'deck';
+    document.getElementById('m-title').textContent = 'Delete this ' + label + '?';
+    document.getElementById('m-body').textContent = 'This will permanently remove ' + label + ' ' + id + '. This cannot be undone.';
+    document.getElementById('m-confirm').textContent = 'delete';
+  }
   document.getElementById('modal').classList.add('open');
 }
 function closeModal() {
@@ -297,11 +350,28 @@ function submitDelete() {
   } else if (pendingType === 'deck') {
     document.getElementById('del-deck-id').value = pendingId;
     document.getElementById('del-deck-form').submit();
+  } else if (pendingType === 'account') {
+    document.getElementById('del-account-form').submit();
   }
 }
 document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
+// section nav
+function switchSection(name, btn) {
+  document.querySelectorAll('.section-nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.profile-section').forEach(function(s){ s.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('section-' + name).classList.add('active');
+  history.replaceState(null, '', '#' + name);
+}
+(function(){
+  var hash = location.hash.replace('#','');
+  if (hash === 'pages' || hash === 'decks' || hash === 'settings') {
+    var btn = document.querySelector('.section-nav-btn[onclick*="' + hash + '"]');
+    if (btn) switchSection(hash, btn);
+  }
+})();
 // loading state for all form buttons
 document.querySelectorAll('form').forEach(function(f){
   f.addEventListener('submit', function(){

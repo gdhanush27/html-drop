@@ -37,7 +37,7 @@ a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}
   <div class="code">{{ code }}</div>
   <div class="title">{{ title }}</div>
   <div class="sub">{{ subtitle }}</div>
-  <div class="detail">{{ detail }}</div>
+  <div class="detail">{{ detail|safe }}</div>
   <div class="divider"></div>
   {% if show_home %}
   <a href="/" style="color:var(--accent);font-family:var(--mono);font-size:.8rem;">&#8592; back to htmldrop</a>
